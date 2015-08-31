@@ -1,5 +1,5 @@
 {% load i18n %}
-<div class="sequence proctored-exam instructions message-top-bar" data-exam-id="{{exam_id}}" data-exam-started-poll-url="{{exam_started_poll_url}}">
+<div class="sequence proctored-exam instructions message-left-bar" data-exam-id="{{exam_id}}" data-exam-started-poll-url="{{exam_started_poll_url}}">
   <h3>
     {% blocktrans %}
       You Have Chosen To Take a Proctored Exam
@@ -27,7 +27,7 @@
       {% endblocktrans %}
     </p>
     <p>
-      <span class="proctored-exam-code" role="application">{{exam_code}}</span>&nbsp;<button class='proctored-exam-select-code'>Select exam code</button>
+      <span class="proctored-exam-code" role="application">{{exam_code}}</span>
     </p>
     <p>
       {% blocktrans %}
@@ -92,31 +92,6 @@
       });
     }
   );
-
-  $('.proctored-exam-select-code').click(function() {
-    selectText($('.proctored-exam-code'));
-    $(event.currentTarget).blur();
-  });
-
-  function selectText(textToBeSelected) {
-    // this selects all the text in an element
-    // http://stackoverflow.com/questions/12243898/how-to-select-all-text-in-contenteditable-div
-    var doc = document,
-      range, selection,
-      element = textToBeSelected[0];
-
-    if (doc.body.createTextRange) {
-      range = doc.body.createTextRange();
-      range.moveToElementText(element);
-      range.select();
-    } else if (window.getSelection) {
-      selection = window.getSelection();
-      range = doc.createRange();
-      range.selectNodeContents(element);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-  }
 
   $(document).ready(function(){
     _waiting_for_proctored_interval = setInterval(
