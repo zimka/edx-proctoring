@@ -462,7 +462,12 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
             })
 
         # now call into the backend provider to register exam attempt
-        external_id = get_backend_provider().register_exam_attempt(
+
+        course_id = exam.course_id
+        # TODO: find how to get course by course_id
+        # TODO: find how to get settings from course
+        provider_name = '' # course.settings.proctor_provider?
+        external_id = get_backend_provider(provider_name).register_exam_attempt(
             exam,
             context=context,
         )
