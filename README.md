@@ -42,16 +42,30 @@ Also in your lms.env.json and cms.env.json file please add the following:
 In your lms.auth.json file, please add the following *secure* information:
 
 ```
-    "PROCTORING_BACKEND_PROVIDER": {
-        "class": "edx_proctoring.backends.software_secure.SoftwareSecureBackendProvider",
-        "options": {
-            "crypto_key": "{add SoftwareSecure crypto key here}",
-            "exam_register_endpoint": "{add enpoint to SoftwareSecure}",
-            "exam_sponsor": "{add SoftwareSecure sponsor}",
-            "organization": "{add SoftwareSecure organization}",
-            "secret_key": "{add SoftwareSecure secret key}",
-            "secret_key_id": "{add SoftwareSecure secret key id}",
-            "software_download_url": "{add SoftwareSecure download url}"
+    "PROCTORING_BACKEND_PROVIDERS":{
+        "SOFTWARE_SECURE": {
+            "class": "edx_proctoring.backends.software_secure.SoftwareSecureBackendProvider",
+            "options": {
+                "crypto_key": "{add SoftwareSecure crypto key here}",
+                "exam_register_endpoint": "{add enpoint to SoftwareSecure}",
+                "exam_sponsor": "{add SoftwareSecure sponsor}",
+                "organization": "{add SoftwareSecure organization}",
+                "secret_key": "{add SoftwareSecure secret key}",
+                "secret_key_id": "{add SoftwareSecure secret key id}",
+                "software_download_url": "{add SoftwareSecure download url}"
+            }
+        },
+        "WEB_ASSISTANT": {
+            "class": "lms.djangoapps.npoed_proctor.npoed.backends.assistant.NPOEDBackendProvider",
+            "options": {
+                "crypto_key": "{add crypto key}",
+                "exam_register_endpoint": "{add enpoint to WebAssistant}",
+                "exam_sponsor": "{add sponsor}",
+                "organization": "{add organization}",
+                "secret_key": "{add secret key}",
+                "secret_key_id": "{add secret key id}",
+                "software_download_url": "{add software download url}"
+            }
         }
     },
 ```
