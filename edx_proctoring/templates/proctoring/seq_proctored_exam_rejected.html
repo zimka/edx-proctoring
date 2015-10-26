@@ -6,10 +6,16 @@
     {% endblocktrans %}
   </h3>
 
+  <h4>
+    {% blocktrans %}
+      Your proctoring session results: <b class="failure"> Unsatisfactory </b>
+    {% endblocktrans %}
+  </h4>
+
   <p>
     {% blocktrans %}
-      You are no longer eligible for academic credit for this course, regardless of your final grade.
-      If you have questions about the status of your proctored exam results, contact {{ platform_name }} Support.
+      You are not eligible to purchase academic credit for this course, regardless of your final grade in the course.
+      If you have concerns about your proctoring session results, contact your course team.
     {% endblocktrans %}
   </p>
   <hr>
@@ -27,4 +33,4 @@
   </p>
   <div class="clearfix"></div>
 </div>
-{% include 'proctored_exam/footer.html' %}
+{% include 'proctoring/seq_proctored_exam_footer.html' %}

@@ -21,12 +21,6 @@ class ProctoredExamNotFoundException(ProctoredBaseException):
     """
 
 
-class ProctoredExamNotActiveException(ProctoredBaseException):
-    """
-    Raised when a look up fails.
-    """
-
-
 class StudentExamAttemptAlreadyExistsException(ProctoredBaseException):
     """
     Raised when trying to start an exam when an Exam Attempt already exists.

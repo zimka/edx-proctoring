@@ -14,6 +14,8 @@ from edx_proctoring.models import (
 from edx_proctoring.utils import locate_attempt_by_attempt_code
 from edx_proctoring.backends import get_backend_provider
 
+from xmodule.modulestore.django import modulestore
+from opaque_keys.edx.keys import CourseKey
 
 class ProctoredExamReviewPolicyAdmin(admin.ModelAdmin):
     """
@@ -110,10 +112,9 @@ class ProctoredExamSoftwareSecureReviewAdmin(admin.ModelAdmin):
     """
 
     readonly_fields = [video_url_for_review, 'attempt_code', 'exam', 'student', 'reviewed_by', 'modified']
-    list_filter = [ReviewListFilter, 'review_status', 'exam__course_id', 'exam__exam_name']
+    list_filter = ['review_status', 'exam__course_id', 'exam__exam_name', ReviewListFilter]
     list_select_related = True
     search_fields = ['student__username', 'attempt_code']
-    ordering = ['-modified']
     form = ProctoredExamSoftwareSecureReviewForm
 
     def _get_exam_from_attempt_code(self, code):
@@ -171,7 +172,11 @@ class ProctoredExamSoftwareSecureReviewAdmin(admin.ModelAdmin):
         review.save()
         # call the review saved and since it's coming from
         # the Django admin will we accept failures
-        get_backend_provider().on_review_saved(review, allow_status_update_on_fail=True)
+        course_id = review.exam['course_id']
+        course_key = CourseKey.from_string(course_id)
+        course = modulestore().get_course(course_key)
+        provider_name = course.proctoring_service
+        get_backend_provider(provider_name).on_review_saved(review, allow_status_update_on_fail=True)
 
     def get_form(self, request, obj=None, **kwargs):
         form = super(ProctoredExamSoftwareSecureReviewAdmin, self).get_form(request, obj, **kwargs)

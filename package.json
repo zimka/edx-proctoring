@@ -2,7 +2,7 @@
   "name": "edx-proctoring",
   "repository": {
     "type": "git",
-    "url": "git://github.com/edx/edx-proctoring"
+    "url": "git://github.com/raccoongang/edx-proctoring"
   },
   "devDependencies": {
     "gulp": "^3.9.0",

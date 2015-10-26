@@ -37,9 +37,7 @@ from edx_proctoring.api import (
     update_attempt_status,
     get_attempt_status_summary,
     update_exam_attempt,
-    _check_for_attempt_timeout,
-    _get_ordered_prerequisites,
-    _are_prerequirements_satisfied,
+    _check_for_attempt_timeout
 )
 from edx_proctoring.exceptions import (
     ProctoredExamAlreadyExists,
@@ -83,7 +81,6 @@ class ProctoredExamApiTests(LoggedInTestCase):
         super(ProctoredExamApiTests, self).setUp()
         self.default_time_limit = 21
         self.course_id = 'test_course'
-        self.content_id_for_exam_with_due_date = 'test_content_due_date_id'
         self.content_id = 'test_content_id'
         self.content_id_timed = 'test_content_id_timed'
         self.content_id_practice = 'test_content_id_practice'
@@ -99,96 +96,25 @@ class ProctoredExamApiTests(LoggedInTestCase):
         self.disabled_exam_id = self._create_disabled_exam()
 
         # Messages for get_student_view
-        self.start_an_exam_msg = 'This exam is proctored'
-        self.exam_expired_msg = 'The due date for this exam has passed'
-        self.timed_exam_msg = '{exam_name} is a Timed Exam'
+        self.start_an_exam_msg = 'This exam is proctored.'
+        self.timed_exam_msg = '%s is a Timed Exam'
         self.exam_time_expired_msg = 'You did not complete the exam in the allotted time'
         self.exam_time_error_msg = 'There was a problem with your proctoring session'
-        self.chose_proctored_exam_msg = 'Follow these steps to set up and start your proctored exam'
-        self.proctored_exam_optout_msg = 'Take this exam as an open exam instead'
+        self.chose_proctored_exam_msg = 'You Have Chosen To Take a Proctored Exam'
         self.proctored_exam_completed_msg = 'Are you sure you want to end your proctored exam'
-        self.proctored_exam_waiting_for_app_shutdown_msg = 'You are about to complete your proctored exam'
         self.proctored_exam_submitted_msg = 'You have submitted this proctored exam for review'
         self.proctored_exam_verified_msg = 'Your proctoring session was reviewed and passed all requirements'
         self.proctored_exam_rejected_msg = 'Your proctoring session was reviewed and did not pass requirements'
-        self.start_a_practice_exam_msg = 'Get familiar with proctoring for real exams later in the course'
+        self.timed_exam_completed_msg = 'This is the end of your timed exam'
+        self.start_a_practice_exam_msg = 'Get familiar with proctoring for real exams later in the course.'
         self.practice_exam_submitted_msg = 'You have submitted this practice proctored exam'
-        self.practice_exam_created_msg = 'Follow these steps to set up and start your proctored exam'
-        self.practice_exam_completion_msg = 'Are you sure you want to end your proctored exam'
         self.ready_to_start_msg = 'Follow these instructions'
         self.practice_exam_failed_msg = 'There was a problem with your practice proctoring session'
         self.proctored_exam_email_subject = 'Proctoring Session Results Update'
         self.proctored_exam_email_body = 'the status of your proctoring session review'
-        self.footer_msg = 'About Proctored Exams'
 
         set_runtime_service('credit', MockCreditService())
-        set_runtime_service('instructor', MockInstructorService(is_user_course_staff=True))
-
-        self.prerequisites = [
-            {
-                'namespace': 'proctoring',
-                'name': 'proc1',
-                'order': 2,
-                'status': 'satisfied',
-            },
-            {
-                'namespace': 'reverification',
-                'name': 'rever1',
-                'order': 1,
-                'status': 'satisfied',
-            },
-            {
-                'namespace': 'grade',
-                'name': 'grade1',
-                'order': 0,
-                'status': 'pending',
-            },
-            {
-                'namespace': 'reverification',
-                'name': 'rever2',
-                'order': 3,
-                'status': 'failed',
-            },
-            {
-                'namespace': 'proctoring',
-                'name': 'proc2',
-                'order': 4,
-                'status': 'pending',
-            },
-        ]
-
-        self.declined_prerequisites = [
-            {
-                'namespace': 'proctoring',
-                'name': 'proc1',
-                'order': 2,
-                'status': 'satisfied',
-            },
-            {
-                'namespace': 'reverification',
-                'name': 'rever1',
-                'order': 1,
-                'status': 'satisfied',
-            },
-            {
-                'namespace': 'grade',
-                'name': 'grade1',
-                'order': 0,
-                'status': 'pending',
-            },
-            {
-                'namespace': 'reverification',
-                'name': 'rever2',
-                'order': 3,
-                'status': 'declined',
-            },
-            {
-                'namespace': 'proctoring',
-                'name': 'proc2',
-                'order': 4,
-                'status': 'pending',
-            },
-        ]
+        set_runtime_service('instructor', MockInstructorService())
 
     def _create_proctored_exam(self):
         """
@@ -199,20 +125,6 @@ class ProctoredExamApiTests(LoggedInTestCase):
             content_id=self.content_id,
             exam_name=self.exam_name,
             time_limit_mins=self.default_time_limit
-        )
-
-    def _create_exam_with_due_time(self, is_proctored=True, is_practice_exam=False, due_date=None):
-        """
-        Calls the api's create_exam to create an exam object.
-        """
-        return create_exam(
-            course_id=self.course_id,
-            content_id=self.content_id_for_exam_with_due_date,
-            exam_name=self.exam_name,
-            time_limit_mins=self.default_time_limit,
-            is_proctored=is_proctored,
-            is_practice_exam=is_practice_exam,
-            due_date=due_date
         )
 
     def _create_timed_exam(self):
@@ -252,20 +164,12 @@ class ProctoredExamApiTests(LoggedInTestCase):
             is_active=False
         )
 
-    def _create_unstarted_exam_attempt(self, is_proctored=True, is_practice=False):
+    def _create_unstarted_exam_attempt(self, is_proctored=True):
         """
         Creates the ProctoredExamStudentAttempt object.
         """
-        if is_proctored:
-            if is_practice:
-                exam_id = self.practice_exam_id
-            else:
-                exam_id = self.proctored_exam_id
-        else:
-            exam_id = self.timed_exam
-
         return ProctoredExamStudentAttempt.objects.create(
-            proctored_exam_id=exam_id,
+            proctored_exam_id=self.proctored_exam_id if is_proctored else self.timed_exam,
             user_id=self.user_id,
             external_id=self.external_id,
             allowed_time_limit_mins=10,
@@ -287,13 +191,12 @@ class ProctoredExamApiTests(LoggedInTestCase):
             is_sample_attempt=is_sample_attempt
         )
 
-    def _create_started_practice_exam_attempt(self, started_at=None):
+    def _create_started_practice_exam_attempt(self, started_at=None):  # pylint: disable=invalid-name
         """
         Creates the ProctoredExamStudentAttempt object.
         """
         return ProctoredExamStudentAttempt.objects.create(
             proctored_exam_id=self.practice_exam_id,
-            taking_as_proctored=True,
             user_id=self.user_id,
             external_id=self.external_id,
             started_at=started_at if started_at else datetime.now(pytz.UTC),
@@ -354,8 +257,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
         """
         updated_proctored_exam_id = update_exam(
             self.proctored_exam_id, exam_name='Updated Exam Name', time_limit_mins=30,
-            is_proctored=True, external_id='external_id', is_active=True,
-            due_date=datetime.now(pytz.UTC)
+            is_proctored=True, external_id='external_id', is_active=True
         )
 
         # only those fields were updated, whose
@@ -392,26 +294,8 @@ class ProctoredExamApiTests(LoggedInTestCase):
         self.assertEqual(proctored_exam['content_id'], self.content_id)
         self.assertEqual(proctored_exam['exam_name'], self.exam_name)
 
-        exams = get_all_exams_for_course(self.course_id, False)
+        exams = get_all_exams_for_course(self.course_id)
         self.assertEqual(len(exams), 4)
-
-    def test_get_timed_exam(self):
-        """
-        test to get the exam by the exam_id and
-        then compare their values.
-        """
-        timed_exam = get_exam_by_id(self.timed_exam)
-        self.assertEqual(timed_exam['course_id'], self.course_id)
-        self.assertEqual(timed_exam['content_id'], self.content_id_timed)
-        self.assertEqual(timed_exam['exam_name'], self.exam_name)
-
-        timed_exam = get_exam_by_content_id(self.course_id, self.content_id_timed)
-        self.assertEqual(timed_exam['course_id'], self.course_id)
-        self.assertEqual(timed_exam['content_id'], self.content_id_timed)
-        self.assertEqual(timed_exam['exam_name'], self.exam_name)
-
-        exams = get_all_exams_for_course(self.course_id, True)
-        self.assertEqual(len(exams), 1)
 
     def test_get_invalid_proctored_exam(self):
         """
@@ -461,7 +345,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
         Test to get all the allowances for a course.
         """
         allowance = self._add_allowance_for_user()
-        course_allowances = get_allowances_for_course(self.course_id, False)
+        course_allowances = get_allowances_for_course(self.course_id)
         self.assertEqual(len(course_allowances), 1)
         self.assertEqual(course_allowances[0]['proctored_exam']['course_id'], allowance.proctored_exam.course_id)
 
@@ -482,49 +366,6 @@ class ProctoredExamApiTests(LoggedInTestCase):
         self.assertEqual(len(ProctoredExamStudentAllowance.objects.filter()), 1)
         remove_allowance_for_user(student_allowance.proctored_exam.id, self.user_id, self.key)
         self.assertEqual(len(ProctoredExamStudentAllowance.objects.filter()), 0)
-
-    def test_create_exam_attempt_with_due_datetime(self):
-        """
-        Create the exam attempt with due date
-        """
-
-        due_date = datetime.now(pytz.UTC) + timedelta(days=1)
-
-        # exam is created with due datetime > current_datetime and due_datetime < current_datetime + allowed_mins
-        exam_id = self._create_exam_with_due_time(due_date=due_date)
-
-        # due_date is exactly after 24 hours, our exam's allowed minutes are 21
-        # student will get full allowed minutes if student will start exam within next 23 hours and 39 minutes
-        # otherwise allowed minutes = due_datetime - exam_attempt_datetime
-        # so if students arrives after 23 hours and 45 minutes later then he will get only 15 minutes
-
-        minutes_before_past_due_date = 15
-        reset_time = due_date - timedelta(minutes=minutes_before_past_due_date)
-        with freeze_time(reset_time):
-            attempt_id = create_exam_attempt(exam_id, self.user_id)
-            attempt = get_exam_attempt_by_id(attempt_id)
-            self.assertTrue(
-                minutes_before_past_due_date - 1 <= attempt['allowed_time_limit_mins'] <= minutes_before_past_due_date
-            )
-
-    def test_create_exam_attempt_with_past_due_datetime(self):
-        """
-        Create the exam attempt with past due date
-        """
-
-        due_date = datetime.now(pytz.UTC) + timedelta(days=1)
-
-        # exam is created with due datetime which has already passed
-        exam_id = self._create_exam_with_due_time(due_date=due_date)
-
-        # due_date is exactly after 24 hours, if student arrives after 2 days
-        # then he can not attempt the proctored exam
-
-        reset_time = due_date + timedelta(days=2)
-        with freeze_time(reset_time):
-            attempt_id = create_exam_attempt(exam_id, self.user_id)
-            attempt = get_exam_attempt_by_id(attempt_id)
-            self.assertEqual(attempt['status'], ProctoredExamStudentAttemptStatus.declined)
 
     def test_create_an_exam_attempt(self):
         """
@@ -589,7 +430,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
         with self.assertRaises(StudentExamAttemptAlreadyExistsException):
             create_exam_attempt(proctored_exam_student_attempt.proctored_exam.id, self.user_id)
 
-    def test_recreate_a_practice_exam_attempt(self):
+    def test_recreate_a_practice_exam_attempt(self):  # pylint: disable=invalid-name
         """
         Taking the practice exam several times should not cause an exception.
         """
@@ -668,9 +509,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
     @ddt.data(
         (ProctoredExamStudentAttemptStatus.verified, 'satisfied'),
         (ProctoredExamStudentAttemptStatus.submitted, 'submitted'),
-        (ProctoredExamStudentAttemptStatus.declined, 'declined'),
-        (ProctoredExamStudentAttemptStatus.error, 'failed'),
-        (ProctoredExamStudentAttemptStatus.expired, 'failed'),
+        (ProctoredExamStudentAttemptStatus.error, 'failed')
     )
     @ddt.unpack
     def test_remove_exam_attempt_with_status(self, to_status, requirement_status):
@@ -824,11 +663,8 @@ class ProctoredExamApiTests(LoggedInTestCase):
                 'default_time_limit_mins': 90
             }
         )
-        self.assertIn(
-            'data-exam-id="{proctored_exam_id}"'.format(proctored_exam_id=self.proctored_exam_id),
-            rendered_response
-        )
-        self.assertIn(self.start_an_exam_msg.format(exam_name=self.exam_name), rendered_response)
+        self.assertIn('data-exam-id="%d"' % self.proctored_exam_id, rendered_response)
+        self.assertIn(self.start_an_exam_msg, rendered_response)
 
         # try practice exam variant
         rendered_response = get_student_view(
@@ -842,9 +678,9 @@ class ProctoredExamApiTests(LoggedInTestCase):
                 'is_practice_exam': True,
             }
         )
-        self.assertIn(self.start_a_practice_exam_msg.format(exam_name=self.exam_name), rendered_response)
+        self.assertIn(self.start_a_practice_exam_msg, rendered_response)
 
-    def test_get_honor_view_with_practice_exam(self):
+    def test_get_honor_view_with_practice_exam(self):  # pylint: disable=invalid-name
         """
         Test for get_student_view prompting when the student is enrolled in non-verified
         track for a practice exam, this should return not None, meaning
@@ -888,22 +724,15 @@ class ProctoredExamApiTests(LoggedInTestCase):
         self.assertIsNone(rendered_response)
 
     @ddt.data(
-        ('reverification', None, 'The following prerequisites are in a <strong>pending</strong> state', True),
-        ('reverification', 'pending', 'The following prerequisites are in a <strong>pending</strong> state', True),
-        ('reverification', 'failed', 'You did not satisfy the following prerequisites', True),
-        ('reverification', 'satisfied', 'To be eligible to earn credit for this course', False),
-        ('reverification', 'declined', None, False),
-        ('proctored_exam', None, 'The following prerequisites are in a <strong>pending</strong> state', True),
-        ('proctored_exam', 'pending', 'The following prerequisites are in a <strong>pending</strong> state', True),
-        ('proctored_exam', 'failed', 'You did not satisfy the following prerequisites', True),
-        ('proctored_exam', 'satisfied', 'To be eligible to earn credit for this course', False),
-        ('proctored_exam', 'declined', None, False),
-        ('grade', 'failed', 'To be eligible to earn credit for this course', False),
-        # this is nonesense, but let's double check it
-        ('grade', 'declined', 'To be eligible to earn credit for this course', False),
+        ('reverification', None, True, True, False),
+        ('reverification', 'failed', False, False, True),
+        ('reverification', 'failed', False, True, False),
+        ('reverification', 'satisfied', True, True, False),
+        ('grade', 'failed', True, False, False)
     )
     @ddt.unpack
-    def test_prereq_scenarios(self, namespace, req_status, expected_content, should_see_prereq):
+    def test_prereq_scenarios(self, namespace, req_status, show_proctored,
+                              pre_create_attempt, mark_as_declined):
         """
         This test asserts that proctoring will not be displayed under the following
         conditions:
@@ -912,6 +741,9 @@ class ProctoredExamApiTests(LoggedInTestCase):
         """
 
         exam = get_exam_by_id(self.proctored_exam_id)
+
+        if pre_create_attempt:
+            create_exam_attempt(self.proctored_exam_id, self.user_id)
 
         # user hasn't attempted reverifications
         rendered_response = get_student_view(
@@ -928,29 +760,26 @@ class ProctoredExamApiTests(LoggedInTestCase):
                     'credit_requirement_status': [
                         {
                             'namespace': namespace,
-                            'name': 'foo',
-                            'display_name': 'Foo Requirement',
                             'status': req_status,
-                            'order': 0
                         }
                     ]
                 }
             }
         )
-
-        if expected_content:
-            self.assertIn(expected_content, rendered_response)
+        if show_proctored:
+            self.assertIsNotNone(rendered_response)
         else:
             self.assertIsNone(rendered_response)
 
-        if req_status == 'declined' and not expected_content:
-            # also we should have auto-declined if a pre-requisite was declined
-            attempt = get_exam_attempt(exam['id'], self.user_id)
-            self.assertIsNotNone(attempt)
+        # also the user should have been marked as declined in certain
+        # cases
+        if mark_as_declined:
+            attempt = get_exam_attempt(self.proctored_exam_id, self.user_id)
             self.assertEqual(attempt['status'], ProctoredExamStudentAttemptStatus.declined)
-
-        if should_see_prereq:
-            self.assertIn('Foo Requirement', rendered_response)
+        else:
+            attempt = get_exam_attempt(self.proctored_exam_id, self.user_id)
+            if attempt:
+                self.assertNotEqual(attempt['status'], ProctoredExamStudentAttemptStatus.declined)
 
     def test_student_view_non_student(self):
         """
@@ -971,26 +800,6 @@ class ProctoredExamApiTests(LoggedInTestCase):
         )
         self.assertIsNone(rendered_response)
 
-    def test_wrong_exam_combo(self):
-        """
-        Verify that we get a None back when rendering a view
-        for a practice, non-proctored exam. This is unsupported.
-        """
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id='foo',
-            content_id='bar',
-            context={
-                'is_proctored': False,
-                'is_practice_exam': True,
-                'display_name': self.exam_name,
-                'default_time_limit_mins': 90
-            },
-            user_role='student'
-        )
-        self.assertIsNone(rendered_response)
-
     def test_get_disabled_student_view(self):
         """
         Assert that a disabled proctored exam will not override the
@@ -1008,47 +817,6 @@ class ProctoredExamApiTests(LoggedInTestCase):
                 }
             )
         )
-
-    def test_get_studentview_unstarted_exam(self):
-        """
-        Test for get_student_view proctored exam which has not started yet.
-        """
-
-        self._create_unstarted_exam_attempt()
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id=self.course_id,
-            content_id=self.content_id,
-            context={
-                'is_proctored': True,
-                'display_name': self.exam_name,
-                'default_time_limit_mins': 90
-            }
-        )
-        self.assertIn(self.chose_proctored_exam_msg, rendered_response)
-        self.assertIn(self.proctored_exam_optout_msg, rendered_response)
-
-    def test_get_studentview_unstarted_practice_exam(self):
-        """
-        Test for get_student_view Practice exam which has not started yet.
-        """
-
-        self._create_unstarted_exam_attempt(is_practice=True)
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id=self.course_id,
-            content_id=self.content_id_practice,
-            context={
-                'is_proctored': True,
-                'display_name': self.exam_name,
-                'is_practice_exam': True,
-                'default_time_limit_mins': 90
-            }
-        )
-        self.assertIn(self.chose_proctored_exam_msg, rendered_response)
-        self.assertNotIn(self.proctored_exam_optout_msg, rendered_response)
 
     def test_declined_attempt(self):
         """
@@ -1091,7 +859,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
         )
         self.assertIn(self.ready_to_start_msg, rendered_response)
 
-    def test_get_studentview_started_exam(self):
+    def test_get_studentview_started_exam(self):  # pylint: disable=invalid-name
         """
         Test for get_student_view proctored exam which has started.
         """
@@ -1110,181 +878,6 @@ class ProctoredExamApiTests(LoggedInTestCase):
         )
         self.assertIsNone(rendered_response)
 
-    def test_get_studentview_started_practice_exam(self):
-        """
-        Test for get_student_view practice proctored exam which has started.
-        """
-
-        self._create_started_practice_exam_attempt()
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id=self.course_id,
-            content_id=self.content_id_practice,
-            context={
-                'is_proctored': True,
-                'display_name': self.exam_name,
-                'default_time_limit_mins': 90
-            }
-        )
-        self.assertIsNone(rendered_response)
-
-    def test_get_studentview_started_timed_exam(self):
-        """
-        Test for get_student_view timed exam which has started.
-        """
-
-        self._create_started_exam_attempt(is_proctored=False)
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id=self.course_id,
-            content_id=self.content_id_timed,
-            context={
-                'is_proctored': True,
-                'display_name': self.exam_name,
-                'default_time_limit_mins': 90
-            }
-        )
-        self.assertIsNone(rendered_response)
-
-    @ddt.data(
-        (True, False),
-        (True, True),
-        (False, False),
-    )
-    @ddt.unpack
-    def test_practice_exam_attempt_with_past_due_datetime(self, is_proctored, is_practice):
-        """
-        Test for get_student_view for practice proctored exam with past due datetime
-        """
-
-        due_date = datetime.now(pytz.UTC) + timedelta(days=1)
-
-        # exam is created with due datetime which has already passed
-        self._create_exam_with_due_time(
-            is_proctored=is_proctored,
-            is_practice_exam=is_practice,
-            due_date=due_date
-        )
-
-        # due_date is exactly after 24 hours, if student arrives after 2 days
-        # then he can not attempt the proctored exam
-        reset_time = due_date + timedelta(days=2)
-        with freeze_time(reset_time):
-            rendered_response = get_student_view(
-                user_id=self.user_id,
-                course_id=self.course_id,
-                content_id=self.content_id_for_exam_with_due_date,
-                context={
-                    'is_proctored': True,
-                    'is_practice_exam': True,
-                    'display_name': self.exam_name,
-                    'default_time_limit_mins': self.default_time_limit
-                }
-            )
-            self.assertIn(self.exam_expired_msg, rendered_response)
-
-            # call the view again, because the first call set the exam attempt to 'expired'
-            # this second call will render the view based on the state
-            rendered_response = get_student_view(
-                user_id=self.user_id,
-                course_id=self.course_id,
-                content_id=self.content_id_for_exam_with_due_date,
-                context={
-                    'is_proctored': True,
-                    'is_practice_exam': True,
-                    'display_name': self.exam_name,
-                    'default_time_limit_mins': self.default_time_limit
-                }
-            )
-            self.assertIn(self.exam_expired_msg, rendered_response)
-
-    def test_proctored_exam_attempt_with_past_due_datetime(self):
-        """
-        Test for get_student_view for proctored exam with past due datetime
-        """
-
-        due_date = datetime.now(pytz.UTC) + timedelta(days=1)
-
-        # exam is created with due datetime which has already passed
-        self._create_exam_with_due_time(due_date=due_date)
-
-        # due_date is exactly after 24 hours, if student arrives after 2 days
-        # then he can not attempt the proctored exam
-        reset_time = due_date + timedelta(days=2)
-        with freeze_time(reset_time):
-            rendered_response = get_student_view(
-                user_id=self.user_id,
-                course_id=self.course_id,
-                content_id=self.content_id_for_exam_with_due_date,
-                context={
-                    'is_proctored': True,
-                    'display_name': self.exam_name,
-                    'default_time_limit_mins': self.default_time_limit
-                }
-            )
-            self.assertIn(self.exam_expired_msg, rendered_response)
-
-            # call the view again, because the first call set the exam attempt to 'expired'
-            # this second call will render the view based on the state
-            rendered_response = get_student_view(
-                user_id=self.user_id,
-                course_id=self.course_id,
-                content_id=self.content_id_for_exam_with_due_date,
-                context={
-                    'is_proctored': True,
-                    'is_practice_exam': True,
-                    'display_name': self.exam_name,
-                    'default_time_limit_mins': self.default_time_limit
-                }
-            )
-            self.assertIn(self.exam_expired_msg, rendered_response)
-
-    def test_timed_exam_attempt_with_past_due_datetime(self):
-        """
-        Test for get_student_view for timed exam with past due datetime
-        """
-
-        due_date = datetime.now(pytz.UTC) + timedelta(days=1)
-
-        # exam is created with due datetime which has already passed
-        self._create_exam_with_due_time(
-            due_date=due_date,
-            is_proctored=False
-        )
-
-        # due_date is exactly after 24 hours, if student arrives after 2 days
-        # then he can not attempt the proctored exam
-        reset_time = due_date + timedelta(days=2)
-        with freeze_time(reset_time):
-            rendered_response = get_student_view(
-                user_id=self.user_id,
-                course_id=self.course_id,
-                content_id=self.content_id_for_exam_with_due_date,
-                context={
-                    'is_proctored': False,
-                    'display_name': self.exam_name,
-                    'default_time_limit_mins': self.default_time_limit
-                }
-            )
-            self.assertIn(self.exam_expired_msg, rendered_response)
-
-            # call the view again, because the first call set the exam attempt to 'expired'
-            # this second call will render the view based on the state
-            rendered_response = get_student_view(
-                user_id=self.user_id,
-                course_id=self.course_id,
-                content_id=self.content_id_for_exam_with_due_date,
-                context={
-                    'is_proctored': True,
-                    'is_practice_exam': True,
-                    'display_name': self.exam_name,
-                    'default_time_limit_mins': self.default_time_limit
-                }
-            )
-            self.assertIn(self.exam_expired_msg, rendered_response)
-
     @patch.dict('django.conf.settings.PROCTORING_SETTINGS', {'ALLOW_TIMED_OUT_STATE': True})
     def test_get_studentview_timedout(self):
         """
@@ -1292,29 +885,30 @@ class ProctoredExamApiTests(LoggedInTestCase):
         it will automatically state transition into timed_out
         """
 
-        self._create_started_exam_attempt()
+        attempt_obj = self._create_started_exam_attempt()
 
         reset_time = datetime.now(pytz.UTC) + timedelta(days=1)
         with freeze_time(reset_time):
-            with self.assertRaises(NotImplementedError):
-                get_student_view(
-                    user_id=self.user_id,
-                    course_id=self.course_id,
-                    content_id=self.content_id,
-                    context={
-                        'is_proctored': True,
-                        'display_name': self.exam_name,
-                        'default_time_limit_mins': 90
-                    }
-                )
+            get_student_view(
+                user_id=self.user_id,
+                course_id=self.course_id,
+                content_id=self.content_id,
+                context={
+                    'is_proctored': True,
+                    'display_name': self.exam_name,
+                    'default_time_limit_mins': 90
+                }
+            )
 
-    def test_get_studentview_submitted_status(self):
+        attempt = get_exam_attempt_by_id(attempt_obj.id)
+        self.assertEqual(attempt['status'], 'timed_out')
+
+    def test_get_studentview_submitted_status(self):  # pylint: disable=invalid-name
         """
         Test for get_student_view proctored exam which has been submitted.
         """
         exam_attempt = self._create_started_exam_attempt()
         exam_attempt.status = ProctoredExamStudentAttemptStatus.submitted
-        exam_attempt.last_poll_timestamp = datetime.now(pytz.UTC)
         exam_attempt.save()
 
         rendered_response = get_student_view(
@@ -1327,118 +921,25 @@ class ProctoredExamApiTests(LoggedInTestCase):
                 'default_time_limit_mins': 90
             }
         )
-        self.assertIn(self.proctored_exam_waiting_for_app_shutdown_msg, rendered_response)
+        self.assertIn(self.proctored_exam_submitted_msg, rendered_response)
 
-        reset_time = datetime.now(pytz.UTC) + timedelta(minutes=2)
-        with freeze_time(reset_time):
-            rendered_response = get_student_view(
-                user_id=self.user_id,
-                course_id=self.course_id,
-                content_id=self.content_id,
-                context={
-                    'is_proctored': True,
-                    'display_name': self.exam_name,
-                    'default_time_limit_mins': 90
-                }
-            )
-            self.assertIn(self.proctored_exam_submitted_msg, rendered_response)
-
-    def test_get_studentview_submitted_status_practiceexam(self):
-        """
-        Test for get_student_view practice exam which has been submitted.
-        """
-        exam_attempt = self._create_started_practice_exam_attempt()
-        exam_attempt.status = ProctoredExamStudentAttemptStatus.submitted
-        exam_attempt.last_poll_timestamp = datetime.now(pytz.UTC)
+        # test the variant if we are a sample attempt
+        exam_attempt.is_sample_attempt = True
         exam_attempt.save()
 
         rendered_response = get_student_view(
             user_id=self.user_id,
             course_id=self.course_id,
-            content_id=self.content_id_practice,
+            content_id=self.content_id,
             context={
                 'is_proctored': True,
                 'display_name': self.exam_name,
                 'default_time_limit_mins': 90
             }
         )
-        self.assertIn(self.proctored_exam_waiting_for_app_shutdown_msg, rendered_response)
+        self.assertIn(self.practice_exam_submitted_msg, rendered_response)
 
-        reset_time = datetime.now(pytz.UTC) + timedelta(minutes=2)
-        with freeze_time(reset_time):
-            rendered_response = get_student_view(
-                user_id=self.user_id,
-                course_id=self.course_id,
-                content_id=self.content_id_practice,
-                context={
-                    'is_proctored': True,
-                    'display_name': self.exam_name,
-                    'default_time_limit_mins': 90
-                }
-            )
-            self.assertIn(self.practice_exam_submitted_msg, rendered_response)
-
-    def test_get_studentview_created_status_practiceexam(self):
-        """
-        Test for get_student_view practice exam which has been created.
-        """
-        exam_attempt = self._create_started_practice_exam_attempt()
-        exam_attempt.status = ProctoredExamStudentAttemptStatus.created
-        exam_attempt.save()
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id=self.course_id,
-            content_id=self.content_id_practice,
-            context={
-                'is_proctored': True,
-                'display_name': self.exam_name,
-                'default_time_limit_mins': 90
-            }
-        )
-        self.assertIn(self.practice_exam_created_msg, rendered_response)
-
-    def test_get_studentview_ready_to_start_status_practiceexam(self):
-        """
-        Test for get_student_view practice exam which is ready to start.
-        """
-        exam_attempt = self._create_started_practice_exam_attempt()
-        exam_attempt.status = ProctoredExamStudentAttemptStatus.ready_to_start
-        exam_attempt.save()
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id=self.course_id,
-            content_id=self.content_id_practice,
-            context={
-                'is_proctored': True,
-                'display_name': self.exam_name,
-                'default_time_limit_mins': 90
-            }
-        )
-        self.assertIn(self.ready_to_start_msg, rendered_response)
-
-    def test_get_studentview_compelete_status_practiceexam(self):
-        """
-        Test for get_student_view practice exam when it is complete/ready to submit.
-        """
-        exam_attempt = self._create_started_practice_exam_attempt()
-        exam_attempt.status = ProctoredExamStudentAttemptStatus.ready_to_submit
-        exam_attempt.save()
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id=self.course_id,
-            content_id=self.content_id_practice,
-            context={
-                'is_proctored': True,
-                'display_name': self.exam_name,
-                'default_time_limit_mins': 90
-            }
-        )
-        self.assertIn(self.practice_exam_completion_msg, rendered_response)
-
-    def test_get_studentview_rejected_status(self):
+    def test_get_studentview_rejected_status(self):  # pylint: disable=invalid-name
         """
         Test for get_student_view proctored exam which has been rejected.
         """
@@ -1458,7 +959,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
         )
         self.assertIn(self.proctored_exam_rejected_msg, rendered_response)
 
-    def test_get_studentview_verified_status(self):
+    def test_get_studentview_verified_status(self):  # pylint: disable=invalid-name
         """
         Test for get_student_view proctored exam which has been verified.
         """
@@ -1478,7 +979,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
         )
         self.assertIn(self.proctored_exam_verified_msg, rendered_response)
 
-    def test_get_studentview_completed_status(self):
+    def test_get_studentview_completed_status(self):  # pylint: disable=invalid-name
         """
         Test for get_student_view proctored exam which has been completed.
         """
@@ -1501,30 +1002,30 @@ class ProctoredExamApiTests(LoggedInTestCase):
     @patch.dict('django.conf.settings.PROCTORING_SETTINGS', {'ALLOW_TIMED_OUT_STATE': True})
     def test_get_studentview_expired(self):
         """
-        Test for get_student_view proctored exam which has expired. Since we don't have a template
-        for that view rendering, it will throw a NotImplementedError
+        Test for get_student_view proctored exam which has expired.
         """
 
         self._create_started_exam_attempt(started_at=datetime.now(pytz.UTC).replace(year=2010))
 
-        with self.assertRaises(NotImplementedError):
-            get_student_view(
-                user_id=self.user_id,
-                course_id=self.course_id,
-                content_id=self.content_id,
-                context={
-                    'is_proctored': True,
-                    'display_name': self.exam_name,
-                    'default_time_limit_mins': 90
-                }
-            )
+        rendered_response = get_student_view(
+            user_id=self.user_id,
+            course_id=self.course_id,
+            content_id=self.content_id,
+            context={
+                'is_proctored': True,
+                'display_name': self.exam_name,
+                'default_time_limit_mins': 90
+            }
+        )
 
-    def test_get_studentview_erroneous_exam(self):
+        self.assertIn(self.exam_time_expired_msg, rendered_response)
+
+    def test_get_studentview_erroneous_exam(self):  # pylint: disable=invalid-name
         """
         Test for get_student_view proctored exam which has exam status error.
         """
 
-        ProctoredExamStudentAttempt.objects.create(
+        exam_attempt = ProctoredExamStudentAttempt.objects.create(
             proctored_exam_id=self.proctored_exam_id,
             user_id=self.user_id,
             external_id=self.external_id,
@@ -1545,19 +1046,14 @@ class ProctoredExamApiTests(LoggedInTestCase):
         )
         self.assertIn(self.exam_time_error_msg, rendered_response)
 
-    def test_get_studentview_erroneous_practice_exam(self):
-        """
-        Test for get_student_view practice exam which has exam status error.
-        """
-
-        exam_attempt = self._create_started_practice_exam_attempt()
-        exam_attempt.status = ProctoredExamStudentAttemptStatus.error
+        # test the variant if we are a sample attempt
+        exam_attempt.is_sample_attempt = True
         exam_attempt.save()
 
         rendered_response = get_student_view(
             user_id=self.user_id,
             course_id=self.course_id,
-            content_id=self.content_id_practice,
+            content_id=self.content_id,
             context={
                 'is_proctored': True,
                 'display_name': self.exam_name,
@@ -1566,7 +1062,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
         )
         self.assertIn(self.practice_exam_failed_msg, rendered_response)
 
-    def test_get_studentview_unstarted_timed_exam(self):
+    def test_get_studentview_unstarted_timed_exam(self):  # pylint: disable=invalid-name
         """
         Test for get_student_view Timed exam which is not proctored and has not started yet.
         """
@@ -1580,62 +1076,16 @@ class ProctoredExamApiTests(LoggedInTestCase):
                 'default_time_limit_mins': 90
             }
         )
-        self.assertNotIn(
-            'data-exam-id="{proctored_exam_id}"'.format(proctored_exam_id=self.proctored_exam_id),
-            rendered_response
-        )
-        self.assertIn(self.timed_exam_msg.format(exam_name=self.exam_name), rendered_response)
-        self.assertIn('1 hour and 30 minutes', rendered_response)
-        self.assertNotIn(self.start_an_exam_msg.format(exam_name=self.exam_name), rendered_response)
+        self.assertNotIn('data-exam-id="%d"' % self.proctored_exam_id, rendered_response)
+        self.assertIn(self.timed_exam_msg % self.exam_name, rendered_response)
+        self.assertNotIn(self.start_an_exam_msg, rendered_response)
 
-    def test_get_studentview_unstarted_timed_exam_with_allowance(self):
-        """
-        Test for get_student_view Timed exam which is not proctored and has not started yet.
-        But user has an allowance
-        """
-
-        ProctoredExamStudentAllowance.objects.create(
-            proctored_exam_id=self.timed_exam,
-            user_id=self.user_id,
-            key='Additional time (minutes)',
-            value=15
-        )
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id=self.course_id,
-            content_id=self.content_id_timed,
-            context={
-                'is_proctored': False,
-                'display_name': self.exam_name,
-                'default_time_limit_mins': 90
-            }
-        )
-        self.assertNotIn(
-            'data-exam-id="{proctored_exam_id}"'.format(proctored_exam_id=self.proctored_exam_id),
-            rendered_response
-        )
-        self.assertIn(self.timed_exam_msg.format(exam_name=self.exam_name), rendered_response)
-        self.assertIn('36 minutes', rendered_response)
-        self.assertNotIn(self.start_an_exam_msg.format(exam_name=self.exam_name), rendered_response)
-
-    @ddt.data(
-        (
-            ProctoredExamStudentAttemptStatus.ready_to_submit,
-            'Are you sure that you want to submit your timed exam?'
-        ),
-        (
-            ProctoredExamStudentAttemptStatus.submitted,
-            'You have submitted your timed exam'
-        ),
-    )
-    @ddt.unpack
-    def test_get_studentview_completed_timed_exam(self, status, expected_content):
+    def test_get_studentview_completed_timed_exam(self):  # pylint: disable=invalid-name
         """
         Test for get_student_view timed exam which has completed.
         """
         exam_attempt = self._create_started_exam_attempt(is_proctored=False)
-        exam_attempt.status = status
+        exam_attempt.status = ProctoredExamStudentAttemptStatus.ready_to_submit
         exam_attempt.save()
 
         rendered_response = get_student_view(
@@ -1648,7 +1098,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
                 'default_time_limit_mins': 90
             }
         )
-        self.assertIn(expected_content, rendered_response)
+        self.assertIn(self.timed_exam_completed_msg, rendered_response)
 
     def test_submitted_credit_state(self):
         """
@@ -1703,19 +1153,13 @@ class ProctoredExamApiTests(LoggedInTestCase):
             ProctoredExamStudentAttemptStatus.rejected,
             False,
             None,
-            None
-        ),
-        (
-            ProctoredExamStudentAttemptStatus.expired,
-            False,
-            None,
-            None
+            ProctoredExamStudentAttemptStatus.declined
         ),
         (
             ProctoredExamStudentAttemptStatus.rejected,
             True,
             ProctoredExamStudentAttemptStatus.created,
-            ProctoredExamStudentAttemptStatus.created
+            ProctoredExamStudentAttemptStatus.declined
         ),
         (
             ProctoredExamStudentAttemptStatus.rejected,
@@ -1794,11 +1238,8 @@ class ProctoredExamApiTests(LoggedInTestCase):
 
         # make sure an attempt was made for second_exam
         second_exam_attempt = get_exam_attempt(second_exam_id, self.user_id)
-        if expected_second_status:
-            self.assertIsNotNone(second_exam_attempt)
-            self.assertEqual(second_exam_attempt['status'], expected_second_status)
-        else:
-            self.assertIsNone(second_exam_attempt)
+        self.assertIsNotNone(second_exam_attempt)
+        self.assertEqual(second_exam_attempt['status'], expected_second_status)
 
         # no auto-generated attempts for practice and timed exams
         self.assertIsNone(get_exam_attempt(practice_exam_id, self.user_id))
@@ -1808,7 +1249,6 @@ class ProctoredExamApiTests(LoggedInTestCase):
     @ddt.data(
         (ProctoredExamStudentAttemptStatus.declined, ProctoredExamStudentAttemptStatus.eligible),
         (ProctoredExamStudentAttemptStatus.timed_out, ProctoredExamStudentAttemptStatus.created),
-        (ProctoredExamStudentAttemptStatus.expired, ProctoredExamStudentAttemptStatus.created),
         (ProctoredExamStudentAttemptStatus.submitted, ProctoredExamStudentAttemptStatus.ready_to_start),
         (ProctoredExamStudentAttemptStatus.verified, ProctoredExamStudentAttemptStatus.started),
         (ProctoredExamStudentAttemptStatus.rejected, ProctoredExamStudentAttemptStatus.started),
@@ -2003,14 +1443,6 @@ class ProctoredExamApiTests(LoggedInTestCase):
                 'suggested_icon': 'fa-exclamation-triangle',
                 'in_completed_state': True
             }
-        ),
-        (
-            ProctoredExamStudentAttemptStatus.expired, {
-                'status': ProctoredExamStudentAttemptStatus.expired,
-                'short_description': 'Exam Expired',
-                'suggested_icon': 'fa-exclamation-triangle',
-                'in_completed_state': True
-            }
         )
     )
     @ddt.unpack
@@ -2079,14 +1511,6 @@ class ProctoredExamApiTests(LoggedInTestCase):
             ProctoredExamStudentAttemptStatus.error, {
                 'status': ProctoredExamStudentAttemptStatus.error,
                 'short_description': 'Practice Exam Failed',
-                'suggested_icon': 'fa-exclamation-triangle',
-                'in_completed_state': True
-            }
-        ),
-        (
-            ProctoredExamStudentAttemptStatus.expired, {
-                'status': ProctoredExamStudentAttemptStatus.expired,
-                'short_description': 'Exam Expired',
                 'suggested_icon': 'fa-exclamation-triangle',
                 'in_completed_state': True
             }
@@ -2266,8 +1690,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
         ProctoredExamStudentAttemptStatus.declined,
         ProctoredExamStudentAttemptStatus.timed_out,
         ProctoredExamStudentAttemptStatus.not_reviewed,
-        ProctoredExamStudentAttemptStatus.error,
-        ProctoredExamStudentAttemptStatus.expired
+        ProctoredExamStudentAttemptStatus.error
     )
     @patch.dict('settings.PROCTORING_SETTINGS', {'ALLOW_TIMED_OUT_STATE': True})
     def test_not_send_email(self, status):
@@ -2318,148 +1741,3 @@ class ProctoredExamApiTests(LoggedInTestCase):
             status
         )
         self.assertEquals(len(mail.outbox), 0)
-
-    @ddt.data(
-        ProctoredExamStudentAttemptStatus.eligible,
-        ProctoredExamStudentAttemptStatus.created,
-        ProctoredExamStudentAttemptStatus.submitted,
-        ProctoredExamStudentAttemptStatus.verified,
-        ProctoredExamStudentAttemptStatus.rejected,
-    )
-    def test_footer_present(self, status):
-        """
-        Make sure the footer content is visible in the rendered output
-        """
-
-        if status != ProctoredExamStudentAttemptStatus.eligible:
-            exam_attempt = self._create_started_exam_attempt()
-            exam_attempt.status = status
-            exam_attempt.save()
-
-        rendered_response = get_student_view(
-            user_id=self.user_id,
-            course_id=self.course_id,
-            content_id=self.content_id,
-            context={
-                'is_proctored': True,
-                'display_name': self.exam_name,
-                'default_time_limit_mins': 90
-            }
-        )
-        self.assertIsNotNone(rendered_response)
-        if status == ProctoredExamStudentAttemptStatus.submitted:
-            exam_attempt.last_poll_timestamp = datetime.now(pytz.UTC)
-            exam_attempt.save()
-
-            reset_time = datetime.now(pytz.UTC) + timedelta(minutes=2)
-            with freeze_time(reset_time):
-                rendered_response = get_student_view(
-                    user_id=self.user_id,
-                    course_id=self.course_id,
-                    content_id=self.content_id,
-                    context={
-                        'is_proctored': True,
-                        'display_name': self.exam_name,
-                        'default_time_limit_mins': 90
-                    }
-                )
-                self.assertIn(self.footer_msg, rendered_response)
-        else:
-            self.assertIn(self.footer_msg, rendered_response)
-
-    def test_requirement_status_order(self):
-        """
-        Make sure that we get a correct ordered list of all statuses sorted in the correct
-        order
-        """
-
-        # try unfiltered version first
-        ordered_list = _get_ordered_prerequisites(self.prerequisites)
-
-        self.assertEqual(len(ordered_list), 5)
-
-        # check the ordering
-        for idx in range(5):
-            self.assertEqual(ordered_list[idx]['order'], idx)
-
-        # now filter out the 'grade' namespace
-        ordered_list = _get_ordered_prerequisites(self.prerequisites, ['grade'])
-
-        self.assertEqual(len(ordered_list), 4)
-
-        # check the ordering
-        for idx in range(4):
-            # we +1 on the idx because we know we filtered out one
-            self.assertEqual(ordered_list[idx]['order'], idx + 1)
-
-        # check other expected ordering
-        self.assertEqual(ordered_list[0]['namespace'], 'reverification')
-        self.assertEqual(ordered_list[0]['name'], 'rever1')
-        self.assertEqual(ordered_list[1]['namespace'], 'proctoring')
-        self.assertEqual(ordered_list[1]['name'], 'proc1')
-        self.assertEqual(ordered_list[2]['namespace'], 'reverification')
-        self.assertEqual(ordered_list[2]['name'], 'rever2')
-        self.assertEqual(ordered_list[3]['namespace'], 'proctoring')
-        self.assertEqual(ordered_list[3]['name'], 'proc2')
-
-    @ddt.data(
-        ('rever1', True, 0, 0, 0, 0),
-        ('proc1', True, 1, 0, 0, 0),
-        ('rever2', True, 2, 0, 0, 0),
-        ('proc2', False, 2, 1, 0, 0),
-        ('unknown', False, 2, 1, 1, 0),
-        (None, False, 2, 1, 1, 0),
-    )
-    @ddt.unpack
-    def test_are_prerequisite_satisifed(self, content_id,
-                                        expected_are_prerequisites_satisifed,
-                                        expected_len_satisfied_prerequisites,
-                                        expected_len_failed_prerequisites,
-                                        expected_len_pending_prerequisites,
-                                        expected_len_declined_prerequisites):
-        """
-        verify proper operation of the logic when computing is prerequisites are satisfied
-        """
-
-        results = _are_prerequirements_satisfied(
-            self.prerequisites,
-            content_id,
-            filter_out_namespaces=['grade']
-        )
-
-        self.assertEqual(results['are_prerequisites_satisifed'], expected_are_prerequisites_satisifed)
-        self.assertEqual(len(results['satisfied_prerequisites']), expected_len_satisfied_prerequisites)
-        self.assertEqual(len(results['failed_prerequisites']), expected_len_failed_prerequisites)
-        self.assertEqual(len(results['pending_prerequisites']), expected_len_pending_prerequisites)
-        self.assertEqual(len(results['declined_prerequisites']), expected_len_declined_prerequisites)
-
-    @ddt.data(
-        ('rever1', True, 0, 0, 0, 0),
-        ('proc1', True, 1, 0, 0, 0),
-        ('rever2', True, 2, 0, 0, 0),
-        ('proc2', False, 2, 0, 0, 1),
-        ('unknown', False, 2, 0, 1, 1),
-        (None, False, 2, 0, 1, 1),
-    )
-    @ddt.unpack
-    def test_declined_prerequisites(self, content_id,
-                                    expected_are_prerequisites_satisifed,
-                                    expected_len_satisfied_prerequisites,
-                                    expected_len_failed_prerequisites,
-                                    expected_len_pending_prerequisites,
-                                    expected_len_declined_prerequisites):
-        """
-        verify proper operation of the logic when computing is prerequisites are satisfied
-        """
-
-        results = _are_prerequirements_satisfied(
-            self.declined_prerequisites,
-            content_id,
-            filter_out_namespaces=['grade']
-        )
-
-        self.assertEqual(results['are_prerequisites_satisifed'], expected_are_prerequisites_satisifed)
-        self.assertEqual(len(results['satisfied_prerequisites']), expected_len_satisfied_prerequisites)
-        self.assertEqual(len(results['failed_prerequisites']), expected_len_failed_prerequisites)
-        self.assertEqual(len(results['pending_prerequisites']), expected_len_pending_prerequisites)
-        self.assertEqual(len(results['declined_prerequisites']), expected_len_declined_prerequisites)

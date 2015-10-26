@@ -9,10 +9,7 @@ from model_utils.models import TimeStampedModel
 from django.utils.translation import ugettext as _
 
 from django.contrib.auth.models import User
-from edx_proctoring.exceptions import (
-    UserNotFoundException,
-    ProctoredExamNotActiveException,
-)
+from edx_proctoring.exceptions import UserNotFoundException
 from django.db.models.base import ObjectDoesNotExist
 
 
@@ -35,9 +32,6 @@ class ProctoredExam(TimeStampedModel):
 
     # Time limit (in minutes) that a student can finish this exam.
     time_limit_mins = models.IntegerField()
-
-    # Due date is a deadline to finish the exam
-    due_date = models.DateTimeField(null=True)
 
     # Whether this exam actually is proctored or not.
     is_proctored = models.BooleanField()
@@ -89,18 +83,14 @@ class ProctoredExam(TimeStampedModel):
         return proctored_exam
 
     @classmethod
-    def get_all_exams_for_course(cls, course_id, active_only=False, timed_exams_only=False):
+    def get_all_exams_for_course(cls, course_id, active_only=False):
         """
         Returns all exams for a give course
         """
-        filtered_query = Q(course_id=course_id)
-
+        result = cls.objects.filter(course_id=course_id)
         if active_only:
-            filtered_query = filtered_query & Q(is_active=True)
-        if timed_exams_only:
-            filtered_query = filtered_query & Q(is_proctored=False)
-
-        return cls.objects.filter(filtered_query)
+            result = result.filter(is_active=True)
+        return result
 
 
 class ProctoredExamStudentAttemptStatus(object):
@@ -112,7 +102,7 @@ class ProctoredExamStudentAttemptStatus(object):
     might change over time.
     """
 
-    # the student is eligible to decide if he/she wants to pursue credit
+    # the student is eligible to decide if he/she wants to persue credit
     eligible = 'eligible'
 
     # the attempt record has been created, but the exam has not yet
@@ -156,9 +146,6 @@ class ProctoredExamStudentAttemptStatus(object):
     # the exam is believed to be in error
     error = 'error'
 
-    # the exam has expired, i.e. past due date
-    expired = 'expired'
-
     # status alias for sending email
     status_alias_mapping = {
         submitted: _('pending'),
@@ -174,7 +161,7 @@ class ProctoredExamStudentAttemptStatus(object):
         """
         return status in [
             cls.declined, cls.timed_out, cls.submitted, cls.verified, cls.rejected,
-            cls.not_reviewed, cls.error, cls.expired
+            cls.not_reviewed, cls.error
         ]
 
     @classmethod
@@ -193,17 +180,17 @@ class ProctoredExamStudentAttemptStatus(object):
         """
         return to_status in [
             cls.verified, cls.rejected, cls.declined, cls.not_reviewed, cls.submitted,
-            cls.error, cls.expired
+            cls.error
         ]
 
     @classmethod
     def is_a_cascadable_failure(cls, to_status):
         """
         Returns a boolean if the passed in to_status has a failure that needs to be cascaded
-        to other unattempted exams.
+        to other attempts.
         """
         return to_status in [
-            cls.declined
+            cls.rejected, cls.declined
         ]
 
     @classmethod
@@ -368,26 +355,20 @@ class ProctoredExamStudentAttemptManager(models.Manager):
             exam_attempt_obj = None
         return exam_attempt_obj
 
-    def get_all_exam_attempts(self, course_id, timed_exams_only=False):
+    def get_all_exam_attempts(self, course_id):
         """
         Returns the Student Exam Attempts for the given course_id.
         """
-        filtered_query = Q(proctored_exam__course_id=course_id)
 
-        if timed_exams_only:
-            filtered_query = filtered_query & Q(proctored_exam__is_proctored=False)
+        return self.filter(proctored_exam__course_id=course_id).order_by('-created')
 
-        return self.filter(filtered_query).order_by('-created')
-
-    def get_filtered_exam_attempts(self, course_id, search_by, timed_exams_only=False):
+    def get_filtered_exam_attempts(self, course_id, search_by):
         """
         Returns the Student Exam Attempts for the given course_id filtered by search_by.
         """
         filtered_query = Q(proctored_exam__course_id=course_id) & (
             Q(user__username__contains=search_by) | Q(user__email__contains=search_by)
         )
-        if timed_exams_only:
-            filtered_query = filtered_query & Q(proctored_exam__is_proctored=False)
 
         return self.filter(filtered_query).order_by('-created')
 
@@ -531,9 +512,6 @@ class ProctoredExamStudentAttemptHistory(TimeStampedModel):
     # this ID might point to a record that is in the History table
     review_policy_id = models.IntegerField(null=True)
 
-    last_poll_timestamp = models.DateTimeField(null=True)
-    last_poll_ipaddr = models.CharField(max_length=32, null=True)
-
     @classmethod
     def get_exam_attempt_by_code(cls, attempt_code):
         """
@@ -546,10 +524,9 @@ class ProctoredExamStudentAttemptHistory(TimeStampedModel):
         # there are any
         exam_attempt_obj = None
 
-        try:
-            exam_attempt_obj = cls.objects.filter(attempt_code=attempt_code).latest("created")
-        except cls.DoesNotExist:  # pylint: disable=no-member
-            pass
+        items = cls.objects.filter(attempt_code=attempt_code).order_by("-created")
+        if items:
+            exam_attempt_obj = items[0]
 
         return exam_attempt_obj
 
@@ -580,46 +557,8 @@ def on_attempt_deleted(sender, instance, **kwargs):  # pylint: disable=unused-ar
         is_sample_attempt=instance.is_sample_attempt,
         student_name=instance.student_name,
         review_policy_id=instance.review_policy_id,
-        last_poll_timestamp=instance.last_poll_timestamp,
-        last_poll_ipaddr=instance.last_poll_ipaddr,
-
     )
     archive_object.save()
-
-
-@receiver(pre_save, sender=ProctoredExamStudentAttempt)
-def on_attempt_updated(sender, instance, **kwargs):  # pylint: disable=unused-argument
-    """
-    Archive the exam attempt whenever the attempt status is about to be
-    modified. Make a new entry with the previous value of the status in the
-    ProctoredExamStudentAttemptHistory table.
-    """
-
-    if instance.id:
-        # on an update case, get the original
-        # and see if the status has changed, if so, then we need
-        # to archive it
-        original = ProctoredExamStudentAttempt.objects.get(id=instance.id)
-
-        if original.status != instance.status:
-            archive_object = ProctoredExamStudentAttemptHistory(
-                user=original.user,
-                attempt_id=original.id,
-                proctored_exam=original.proctored_exam,
-                started_at=original.started_at,
-                completed_at=original.completed_at,
-                attempt_code=original.attempt_code,
-                external_id=original.external_id,
-                allowed_time_limit_mins=original.allowed_time_limit_mins,
-                status=original.status,
-                taking_as_proctored=original.taking_as_proctored,
-                is_sample_attempt=original.is_sample_attempt,
-                student_name=original.student_name,
-                review_policy_id=original.review_policy_id,
-                last_poll_timestamp=original.last_poll_timestamp,
-                last_poll_ipaddr=original.last_poll_ipaddr,
-            )
-            archive_object.save()
 
 
 class QuerySetWithUpdateOverride(models.query.QuerySet):
@@ -672,15 +611,11 @@ class ProctoredExamStudentAllowance(TimeStampedModel):
         verbose_name = 'proctored allowance'
 
     @classmethod
-    def get_allowances_for_course(cls, course_id, timed_exams_only=False):
+    def get_allowances_for_course(cls, course_id):
         """
         Returns all the allowances for a course.
         """
-        filtered_query = Q(proctored_exam__course_id=course_id)
-        if timed_exams_only:
-            filtered_query = filtered_query & Q(proctored_exam__is_proctored=False)
-
-        return cls.objects.filter(filtered_query)
+        return cls.objects.filter(proctored_exam__course_id=course_id)
 
     @classmethod
     def get_allowance_for_user(cls, exam_id, user_id, key):
@@ -727,10 +662,6 @@ class ProctoredExamStudentAllowance(TimeStampedModel):
                 raise UserNotFoundException(err_msg)
 
             user_id = users[0].id
-
-        exam = ProctoredExam.get_exam_by_id(exam_id)
-        if exam and not exam.is_active:
-            raise ProctoredExamNotActiveException
 
         try:
             student_allowance = cls.objects.get(proctored_exam_id=exam_id, user_id=user_id, key=key)

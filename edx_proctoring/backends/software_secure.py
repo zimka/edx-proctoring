@@ -53,8 +53,6 @@ class SoftwareSecureBackendProvider(ProctoringBackendProvider):
         self.crypto_key = crypto_key
         self.timeout = 10
         self.software_download_url = software_download_url
-        self.passing_review_status = ['Clean', 'Rules Violation']
-        self.failing_review_status = ['Not Reviewed', 'Suspicious']
 
     def register_exam_attempt(self, exam, context):
         """
@@ -138,7 +136,9 @@ class SoftwareSecureBackendProvider(ProctoringBackendProvider):
         # get the SoftwareSecure status on this attempt
         review_status = payload['reviewStatus']
 
-        bad_status = review_status not in self.passing_review_status + self.failing_review_status
+        bad_status = review_status not in [
+            'Not Reviewed', 'Suspicious', 'Rules Violation', 'Clean'
+        ]
 
         if bad_status:
             err_msg = (
@@ -268,7 +268,7 @@ class SoftwareSecureBackendProvider(ProctoringBackendProvider):
         # only 'Clean' and 'Rules Violation' count as passing
         status = (
             ProctoredExamStudentAttemptStatus.verified
-            if review.review_status in self.passing_review_status
+            if review.review_status in ['Clean', 'Rules Violation']
             else ProctoredExamStudentAttemptStatus.rejected
         )
 

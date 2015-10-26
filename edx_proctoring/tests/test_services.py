@@ -22,7 +22,6 @@ class MockCreditService(object):
         """
         Initializer
         """
-        self.order = 0
         self.status = {
             'course_name': course_name,
             'enrollment_mode': enrollment_mode,
@@ -58,13 +57,10 @@ class MockCreditService(object):
                 'req_namespace': req_namespace,
                 'namespace': req_namespace,
                 'name': req_name,
-                'status': status,
-                'order': self.order,
+                'status': status
             })
         else:
             found[0]['status'] = status
-
-        self.order = self.order + 1
 
     # pylint: disable=unused-argument
     # pylint: disable=invalid-name
@@ -90,23 +86,11 @@ class MockInstructorService(object):
     """
     Simple mock of the Instructor Service
     """
-    def __init__(self, is_user_course_staff=True):
-        """
-        Initializer
-        """
-        self.is_user_course_staff = is_user_course_staff
-
     def delete_student_attempt(self, student_identifier, course_id, content_id):  # pylint: disable=unused-argument
         """
         Mock implementation
         """
         return True
-
-    def is_course_staff(self, user, course_id):
-        """
-        Mocked implementation of is_course_staff
-        """
-        return self.is_user_course_staff
 
 
 class TestProctoringService(unittest.TestCase):

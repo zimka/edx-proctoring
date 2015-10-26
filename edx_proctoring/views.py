@@ -38,21 +38,15 @@ from edx_proctoring.exceptions import (
     ProctoredExamPermissionDenied,
     StudentExamAttemptDoesNotExistsException,
     ProctoredExamIllegalStatusTransition,
-    ProctoredExamNotActiveException,
 )
-from edx_proctoring import constants
-from edx_proctoring.runtime import get_runtime_service
 from edx_proctoring.serializers import ProctoredExamSerializer, ProctoredExamStudentAttemptSerializer
-from edx_proctoring.models import ProctoredExamStudentAttemptStatus, ProctoredExamStudentAttempt, ProctoredExam
+from edx_proctoring.models import ProctoredExamStudentAttemptStatus, ProctoredExamStudentAttempt
 
-from edx_proctoring.utils import (
-    AuthenticatedAPIView,
-    get_time_remaining_for_attempt,
-    humanized_time,
-    has_client_app_shutdown,
-)
+from .utils import AuthenticatedAPIView, get_time_remaining_for_attempt, humanized_time
 
 ATTEMPTS_PER_PAGE = 25
+
+SOFTWARE_SECURE_CLIENT_TIMEOUT = settings.PROCTORING_SETTINGS.get('SOFTWARE_SECURE_CLIENT_TIMEOUT', 30)
 
 LOG = logging.getLogger("edx_proctoring_views")
 
@@ -67,40 +61,6 @@ def require_staff(func):
                 status=status.HTTP_403_FORBIDDEN,
                 data={"detail": "Must be a Staff User to Perform this request."}
             )
-    return wrapped
-
-
-def require_course_or_global_staff(func):
-    """View decorator that requires that the user have staff permissions. """
-    def wrapped(request, *args, **kwargs):  # pylint: disable=missing-docstring
-        instructor_service = get_runtime_service('instructor')
-        course_id = kwargs['course_id'] if 'course_id' in kwargs else None
-        exam_id = request.DATA.get('exam_id', None)
-        attempt_id = kwargs['attempt_id'] if 'attempt_id' in kwargs else None
-        if request.user.is_staff:
-            return func(request, *args, **kwargs)
-        else:
-            if course_id is None:
-                if exam_id is not None:
-                    exam = ProctoredExam.get_exam_by_id(exam_id)
-                    course_id = exam.course_id
-                elif attempt_id is not None:
-                    exam_attempt = ProctoredExamStudentAttempt.objects.get_exam_attempt_by_id(attempt_id)
-                    course_id = exam_attempt.proctored_exam.course_id
-                else:
-                    response_message = _("could not determine the course_id")
-                    return Response(
-                        status=status.HTTP_403_FORBIDDEN,
-                        data={"detail": response_message}
-                    )
-            if instructor_service.is_course_staff(request.user, course_id):
-                return func(request, *args, **kwargs)
-            else:
-                return Response(
-                    status=status.HTTP_403_FORBIDDEN,
-                    data={"detail": _("Must be a Staff User to Perform this request.")}
-                )
-
     return wrapped
 
 
@@ -256,11 +216,8 @@ class ProctoredExamView(AuthenticatedAPIView):
                             data={"detail": "The exam with course_id, content_id does not exist."}
                         )
                 else:
-                    timed_exams_only = not request.user.is_staff
                     result_set = get_all_exams_for_course(
-                        course_id=course_id,
-                        timed_exams_only=timed_exams_only,
-                        active_only=True
+                        course_id=course_id
                     )
                     return Response(result_set)
 
@@ -327,30 +284,18 @@ class StudentProctoredExamAttempt(AuthenticatedAPIView):
             # and if it is older than SOFTWARE_SECURE_CLIENT_TIMEOUT
             # then attempt status should be marked as error.
             last_poll_timestamp = attempt['last_poll_timestamp']
-
-            # if we never heard from the client, then we assume it is shut down
-            attempt['client_has_shutdown'] = last_poll_timestamp is None
-
-            if last_poll_timestamp is not None:
-                # Let's pass along information if we think the SoftwareSecure has completed
-                # a healthy shutdown which is when our attempt is in a 'submitted' status
-                if attempt['status'] == ProctoredExamStudentAttemptStatus.submitted:
-                    attempt['client_has_shutdown'] = has_client_app_shutdown(attempt)
-                else:
-                    # otherwise, let's see if the shutdown happened in error
-                    # e.g. a crash
-                    time_passed_since_last_poll = (datetime.now(pytz.UTC) - last_poll_timestamp).total_seconds()
-                    if time_passed_since_last_poll > constants.SOFTWARE_SECURE_CLIENT_TIMEOUT:
-                        try:
-                            update_attempt_status(
-                                attempt['proctored_exam']['id'],
-                                attempt['user']['id'],
-                                ProctoredExamStudentAttemptStatus.error
-                            )
-                            attempt['status'] = ProctoredExamStudentAttemptStatus.error
-                        except ProctoredExamIllegalStatusTransition:
-                            # don't transition a completed state to an error state
-                            pass
+            if last_poll_timestamp is not None \
+                    and (datetime.now(pytz.UTC) - last_poll_timestamp).total_seconds() > SOFTWARE_SECURE_CLIENT_TIMEOUT:
+                try:
+                    update_attempt_status(
+                        attempt['proctored_exam']['id'],
+                        attempt['user']['id'],
+                        ProctoredExamStudentAttemptStatus.error
+                    )
+                    attempt['status'] = ProctoredExamStudentAttemptStatus.error
+                except ProctoredExamIllegalStatusTransition:
+                    # don't transition a completed state to an error state
+                    pass
 
             # add in the computed time remaining as a helper to a client app
             time_remaining_seconds = get_time_remaining_for_attempt(attempt)
@@ -438,7 +383,7 @@ class StudentProctoredExamAttempt(AuthenticatedAPIView):
                 data={"detail": str(ex)}
             )
 
-    @method_decorator(require_course_or_global_staff)
+    @method_decorator(require_staff)
     def delete(self, request, attempt_id):  # pylint: disable=unused-argument
         """
         HTTP DELETE handler. Removes an exam attempt.
@@ -620,23 +565,17 @@ class StudentProctoredExamAttemptsByCourse(AuthenticatedAPIView):
 
     A search parameter is optional
     """
-    @method_decorator(require_course_or_global_staff)
+    @method_decorator(require_staff)
     def get(self, request, course_id, search_by=None):  # pylint: disable=unused-argument
         """
         HTTP GET Handler. Returns the status of the exam attempt.
         """
-        # course staff only views attempts of timed exams. edx staff can view both timed and proctored attempts.
-        time_exams_only = not request.user.is_staff
 
         if search_by is not None:
-            exam_attempts = ProctoredExamStudentAttempt.objects.get_filtered_exam_attempts(
-                course_id, search_by, time_exams_only
-            )
+            exam_attempts = ProctoredExamStudentAttempt.objects.get_filtered_exam_attempts(course_id, search_by)
             attempt_url = reverse('edx_proctoring.proctored_exam.attempts.search', args=[course_id, search_by])
         else:
-            exam_attempts = ProctoredExamStudentAttempt.objects.get_all_exam_attempts(
-                course_id, time_exams_only
-            )
+            exam_attempts = ProctoredExamStudentAttempt.objects.get_all_exam_attempts(course_id)
             attempt_url = reverse('edx_proctoring.proctored_exam.attempts.course', args=[course_id])
 
         paginator = Paginator(exam_attempts, ATTEMPTS_PER_PAGE)
@@ -710,21 +649,17 @@ class ExamAllowanceView(AuthenticatedAPIView):
     **Response Values**
         * returns Nothing. deletes the allowance for the user proctored exam.
     """
-    @method_decorator(require_course_or_global_staff)
+    @method_decorator(require_staff)
     def get(self, request, course_id):  # pylint: disable=unused-argument
         """
         HTTP GET handler. Get all allowances for a course.
         """
-        # course staff only views attempts of timed exams. edx staff can view both timed and proctored attempts.
-        time_exams_only = not request.user.is_staff
-
         result_set = get_allowances_for_course(
-            course_id=course_id,
-            timed_exams_only=time_exams_only
+            course_id=course_id
         )
         return Response(result_set)
 
-    @method_decorator(require_course_or_global_staff)
+    @method_decorator(require_staff)
     def put(self, request):
         """
         HTTP GET handler. Adds or updates Allowance
@@ -737,14 +672,14 @@ class ExamAllowanceView(AuthenticatedAPIView):
                 value=request.DATA.get('value', None)
             ))
 
-        except (UserNotFoundException, ProctoredExamNotActiveException) as ex:
+        except UserNotFoundException, ex:
             LOG.exception(ex)
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,
                 data={"detail": str(ex)}
             )
 
-    @method_decorator(require_course_or_global_staff)
+    @method_decorator(require_staff)
     def delete(self, request):
         """
         HTTP DELETE handler. Removes Allowance.

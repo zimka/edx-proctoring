@@ -38,7 +38,7 @@ setup(
     description='Proctoring subsystem for Open edX',
     long_description=open('README.md').read(),
     author='edX',
-    url='https://github.com/edx/edx-proctoring',
+    url='https://github.com/raccoongang/edx-proctoring',
     license='AGPL',
     classifiers=[
         'Development Status :: 3 - Alpha',

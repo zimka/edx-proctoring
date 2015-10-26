@@ -11,7 +11,7 @@ from django.core.exceptions import ImproperlyConfigured
 _BACKEND_PROVIDER = None
 
 
-def get_backend_provider(emphemeral=False):
+def get_backend_provider(provider_name, emphemeral=False):
     """
     Returns an instance of the configured backend provider that is configured
     via the settings file
@@ -21,13 +21,21 @@ def get_backend_provider(emphemeral=False):
 
     provider = _BACKEND_PROVIDER
     if not _BACKEND_PROVIDER or emphemeral:
-        config = getattr(settings, 'PROCTORING_BACKEND_PROVIDER')
-        if not config:
-            raise ImproperlyConfigured("Settings not configured with PROCTORING_BACKEND_PROVIDER!")
+        proctors_config = getattr(settings, 'PROCTORING_BACKEND_PROVIDERS')
+        if not proctors_config:
+            raise ImproperlyConfigured("Settings not configured with PROCTORING_BACKEND_PROVIDERS!")
+        if provider_name not in proctors_config:
+            msg = (
+                "Misconfigured PROCTORING_BACKEND_PROVIDERS settings, "
+                "there is not '%s' provider specified" % provider_name
+            )
+            raise ImproperlyConfigured(msg)
+
+        config = proctors_config[provider_name]
 
         if 'class' not in config or 'options' not in config:
             msg = (
-                "Misconfigured PROCTORING_BACKEND_PROVIDER settings, "
+                "Misconfigured PROCTORING_BACKEND_PROVIDERS settings, "
                 "must have both 'class' and 'options' keys."
             )
             raise ImproperlyConfigured(msg)
