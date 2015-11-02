@@ -80,17 +80,5 @@ PROCTORING_BACKEND_PROVIDER = {
     "options": {}
 }
 
-PROCTORING_SETTINGS = {
-    'MUST_BE_VERIFIED_TRACK': True,
-    'MUST_COMPLETE_ICRV': True,
-    'LINK_URLS': {
-        'online_proctoring_rules': '',
-        'faq': '',
-        'contact_us': '',
-        'tech_requirements': '',
-    },
-    'ALLOW_CALLBACK_SIMULATION': False
-}
-
 DEFAULT_FROM_EMAIL = 'no-reply@example.com'
 CONTACT_EMAIL = 'info@edx.org'

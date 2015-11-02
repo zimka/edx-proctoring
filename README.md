@@ -26,18 +26,17 @@ You will need to turn on the ENABLE_PROCTORED_EXAMS in lms.env.json and cms.env.
 }
 ```
 
-Also in your lms.env.json and cms.env.json file please add the following:
+Also in your lms.env.json and cms.env.json file you can add the following:
 
 ```
     "PROCTORING_SETTINGS": {
-        "LINK_URLS": {
-            "contact_us": "{add link here}",
-            "faq": "{add link here}",
-            "online_proctoring_rules": "{add link here}",
-            "tech_requirements": "{add link here}"
-        }
+        "ALLOW_CALLBACK_SIMULATION": False,
+        "CLIENT_TIMEOUT": 30,
+        "DEFAULT_REVIEW_POLICY": 'Closed Book',
+        "REQUIRE_FAILURE_SECOND_REVIEWS": True
     },
 ```
+**Note** Settings for each provider moved to its PROCTORING_BACKEND_PROVIDERS's `settings`. See below.
 
 In your lms.auth.json file, please add the following *secure* information:
 
@@ -53,6 +52,14 @@ In your lms.auth.json file, please add the following *secure* information:
                 "secret_key": "{add SoftwareSecure secret key}",
                 "secret_key_id": "{add SoftwareSecure secret key id}",
                 "software_download_url": "{add SoftwareSecure download url}"
+            },
+            'settings': {
+                "LINK_URLS": {
+                    "contact_us": "{add link here}",
+                    "faq": "{add link here}",
+                    "online_proctoring_rules": "{add link here}",
+                    "tech_requirements": "{add link here}"
+                }            
             }
         },
         "WEB_ASSISTANT": {
@@ -65,7 +72,22 @@ In your lms.auth.json file, please add the following *secure* information:
                 "secret_key": "{add secret key}",
                 "secret_key_id": "{add secret key id}",
                 "software_download_url": "{add software download url}"
-            }
+            },
+            'settings': {
+                "SITE_NAME": "{add site name here}",
+                "PLATFORM_NAME": "{add platform name here}",
+                "STATUS_EMAIL_FROM_ADDRESS": "{add email address here}",
+                "CONTACT_EMAIL": "{add email address here}",
+                "DEFAULT_REVIEW_POLICY":"{add policy here}",
+                "REQUIRE_FAILURE_SECOND_REVIEWS":"{add policy here}",
+                "ALLOW_REVIEW_UPDATES": False,
+                "LINK_URLS": {
+                    "contact_us": "{add link here}",
+                    "faq": "{add link here}",
+                    "online_proctoring_rules": "{add link here}",
+                    "tech_requirements": "{add link here}"
+                }            
+            }            
         }
     },
 ```

@@ -46,7 +46,7 @@ from .utils import AuthenticatedAPIView, get_time_remaining_for_attempt, humaniz
 
 ATTEMPTS_PER_PAGE = 25
 
-SOFTWARE_SECURE_CLIENT_TIMEOUT = settings.PROCTORING_SETTINGS.get('SOFTWARE_SECURE_CLIENT_TIMEOUT', 30)
+CLIENT_TIMEOUT = settings.PROCTORING_SETTINGS.get('CLIENT_TIMEOUT', 30)
 
 LOG = logging.getLogger("edx_proctoring_views")
 
@@ -281,11 +281,11 @@ class StudentProctoredExamAttempt(AuthenticatedAPIView):
                 raise ProctoredExamPermissionDenied(err_msg)
 
             # check if the last_poll_timestamp is not None
-            # and if it is older than SOFTWARE_SECURE_CLIENT_TIMEOUT
+            # and if it is older than CLIENT_TIMEOUT
             # then attempt status should be marked as error.
             last_poll_timestamp = attempt['last_poll_timestamp']
             if last_poll_timestamp is not None \
-                    and (datetime.now(pytz.UTC) - last_poll_timestamp).total_seconds() > SOFTWARE_SECURE_CLIENT_TIMEOUT:
+                    and (datetime.now(pytz.UTC) - last_poll_timestamp).total_seconds() > CLIENT_TIMEOUT:
                 try:
                     update_attempt_status(
                         attempt['proctored_exam']['id'],
