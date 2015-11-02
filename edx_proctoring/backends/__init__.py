@@ -65,14 +65,14 @@ def get_backend_provider(provider_name, emphemeral=False):
 
 
 def get_proctoring_settings(provider_name):
-        config = _get_proctoring_config(provider_name)
+    config = _get_proctoring_config(provider_name)
 
-        if 'settings' not in config:
-            msg = ("Miscongfigured PROCTORING_BACKEND_PROVIDES settings,"
-                   "%s must contain 'settings' option" % provider_name
-                   )
-            raise ImproperlyConfigured(msg)
-        return config['settings']
+    if 'settings' not in config:
+        msg = ("Miscongfigured PROCTORING_BACKEND_PROVIDES settings,"
+               "%s must contain 'settings' option" % provider_name
+               )
+        raise ImproperlyConfigured(msg)
+    return config['settings']
 
 
 def get_proctor_settings_param(proctor_settings, param, default=False):
