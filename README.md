@@ -26,7 +26,7 @@ You will need to turn on the ENABLE_PROCTORED_EXAMS in lms.env.json and cms.env.
 }
 ```
 
-Also in your lms.env.json and cms.env.json file you can add the following:
+Also in your lms.env.json and cms.env.json file you can add the following (optional):
 
 ```
     "PROCTORING_SETTINGS": {
@@ -80,7 +80,7 @@ In your lms.auth.json file, please add the following *secure* information:
                 "CONTACT_EMAIL": "{add email address here}",
                 "DEFAULT_REVIEW_POLICY":"{add policy here}",
                 "REQUIRE_FAILURE_SECOND_REVIEWS":"{add policy here}",
-                "ALLOW_REVIEW_UPDATES": False,
+                "ALLOW_REVIEW_UPDATES": false,
                 "LINK_URLS": {
                     "contact_us": "{add link here}",
                     "faq": "{add link here}",
