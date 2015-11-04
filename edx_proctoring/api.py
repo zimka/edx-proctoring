@@ -44,7 +44,7 @@ from edx_proctoring.backends import (get_backend_provider,
              get_proctoring_settings, get_provider_name_by_course_id,
                                      get_proctor_settings_param)
 from edx_proctoring.runtime import get_runtime_service
-
+from django.contrib.auth.models import User
 
 log = logging.getLogger(__name__)
 
@@ -379,6 +379,8 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
             credit_state = credit_service.get_credit_state(user_id, exam['course_id'])
             full_name = credit_state['profile_fullname']
 
+        user = User.objects.get(pk=user_id)
+
         context = {
             'time_limit_mins': allowed_time_limit_mins,
             'attempt_code': attempt_code,
@@ -386,7 +388,8 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
             'callback_url': callback_url,
             'user_id': user_id,
             'full_name': full_name,
-            'credit_state': credit_state
+            'username': user.username,
+            'email': user.email
         }
 
         # see if there is an exam review policy for this exam
