@@ -384,7 +384,9 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
             'attempt_code': attempt_code,
             'is_sample_attempt': exam['is_practice_exam'],
             'callback_url': callback_url,
+            'user_id': user_id,
             'full_name': full_name,
+            'credit_state': credit_state
         }
 
         # see if there is an exam review policy for this exam
