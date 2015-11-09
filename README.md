@@ -32,7 +32,7 @@ Also in your lms.env.json and cms.env.json file you can add the following (optio
     "PROCTORING_SETTINGS": {
         "ALLOW_CALLBACK_SIMULATION": False,
         "CLIENT_TIMEOUT": 30,
-        "DEFAULT_REVIEW_POLICY": 'Closed Book',
+        "DEFAULT_REVIEW_POLICY": "Closed Book",
         "REQUIRE_FAILURE_SECOND_REVIEWS": True
     },
 ```
@@ -53,7 +53,7 @@ In your lms.auth.json file, please add the following *secure* information:
                 "secret_key_id": "{add SoftwareSecure secret key id}",
                 "software_download_url": "{add SoftwareSecure download url}"
             },
-            'settings': {
+            "settings": {
                 "LINK_URLS": {
                     "contact_us": "{add link here}",
                     "faq": "{add link here}",
@@ -73,7 +73,7 @@ In your lms.auth.json file, please add the following *secure* information:
                 "secret_key_id": "{add secret key id}",
                 "software_download_url": "{add software download url}"
             },
-            'settings': {
+            "settings": {
                 "SITE_NAME": "{add site name here}",
                 "PLATFORM_NAME": "{add platform name here}",
                 "STATUS_EMAIL_FROM_ADDRESS": "{add email address here}",
