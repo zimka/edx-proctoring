@@ -21,6 +21,7 @@ from edx_proctoring.api import (
     update_exam_attempt)
 
 from edx_proctoring.exceptions import ProctoredBaseException
+from edx_proctoring.utils import locate_attempt_by_attempt_code
 
 from edx_proctoring.backends import get_backend_provider, get_proctoring_settings, get_provider_name_by_course_id
 
@@ -117,7 +118,7 @@ class ExamReviewCallback(APIView):
                 },
                 status=400
             )
-        attempt_obj = locate_attempt_by_attempt_code(attempt_code)
+        attempt_obj, is_archived_attempt = locate_attempt_by_attempt_code(attempt_code)
         course_id = attempt_obj.proctored_exam['course_id']
         provider_name = get_provider_name_by_course_id(course_id)
         provider = get_backend_provider(provider_name)
