@@ -551,7 +551,9 @@ class StudentProctoredExamAttemptCollection(AuthenticatedAPIView):
             return Response({'exam_attempt_id': exam_attempt_id})
 
         except ProctoredBaseException, ex:
-            LOG.exception(ex)
+            LOG.exception(
+                u' '.join((u'', ex)).encode('utf-8').strip()
+            )
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,
                 data={"detail": unicode(ex)}
