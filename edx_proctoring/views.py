@@ -552,7 +552,7 @@ class StudentProctoredExamAttemptCollection(AuthenticatedAPIView):
 
         except ProctoredBaseException, ex:
             LOG.exception(
-                u' '.join((u'', ex)).encode('utf-8').strip()
+                u' '.join((ex.message,)).encode('utf-8').strip()
             )
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,
