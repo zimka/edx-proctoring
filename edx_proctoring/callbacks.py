@@ -119,7 +119,7 @@ class ExamReviewCallback(APIView):
                 status=400
             )
         attempt_obj, is_archived_attempt = locate_attempt_by_attempt_code(attempt_code)
-        course_id = attempt_obj.proctored_exam['course_id']
+        course_id = attempt_obj.proctored_exam.course_id
         provider_name = get_provider_name_by_course_id(course_id)
         provider = get_backend_provider(provider_name)
 
