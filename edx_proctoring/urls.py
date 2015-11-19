@@ -76,9 +76,19 @@ urlpatterns = patterns(  # pylint: disable=invalid-name
         name='edx_proctoring.anonymous.proctoring_launch_callback.start_exam'
     ),
     url(
+        r'edx_proctoring/proctoring_launch_callback/bulk_start_exams/(?P<attempt_codes>[A-z0-9\_\,]+)$',
+        callbacks.bulk_start_exams_callback,
+        name='edx_proctoring.anonymous.proctoring_launch_callback.bulk_start_exams_callback'
+    ),
+    url(
         r'edx_proctoring/proctoring_review_callback/$',
         callbacks.ExamReviewCallback.as_view(),
         name='edx_proctoring.anonymous.proctoring_review_callback'
+    ),
+    url(
+        r'edx_proctoring/proctoring_bulk_review_callback/$',
+        callbacks.BulkExamReviewCallback.as_view(),
+        name='edx_proctoring.anonymous.proctoring_bulk_review_callback'
     ),
     url(
         r'edx_proctoring/proctoring_poll_status/(?P<attempt_code>[-\w]+)$',

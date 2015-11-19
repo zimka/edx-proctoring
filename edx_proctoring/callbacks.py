@@ -8,6 +8,8 @@ from django.conf import settings
 from django.http import HttpResponse
 import pytz
 from datetime import datetime
+
+from edx_proctoring.models import ProctoredExamStudentAttempt
 from ipware.ip import get_ip
 from django.core.urlresolvers import reverse
 
@@ -18,7 +20,8 @@ from rest_framework.negotiation import BaseContentNegotiation
 from edx_proctoring.api import (
     get_exam_attempt_by_code,
     mark_exam_attempt_as_ready,
-    update_exam_attempt)
+    update_exam_attempt,
+    _get_exam_attempt)
 
 from edx_proctoring.exceptions import ProctoredBaseException
 from edx_proctoring.utils import locate_attempt_by_attempt_code
@@ -65,6 +68,51 @@ def start_exam_callback(request, attempt_code):  # pylint: disable=unused-argume
         template.render(
             Context({
                 'exam_attempt_status_url': poll_url,
+                'platform_name': settings.PLATFORM_NAME,
+                'link_urls': proctoring_settings.get('LINK_URLS', {})
+            })
+        )
+    )
+
+
+def bulk_start_exams_callback(request, attempt_codes):
+    """
+    A callback endpoint which is called when SoftwareSecure completes
+    the proctoring setup and the exams should be started.
+
+    NOTE: This returns HTML as it will be displayed in an embedded browser
+
+    This is an authenticated endpoint and comaseparated attempt codes is passed
+    in as part of the URL path
+
+    IMPORTANT: This is an unauthenticated endpoint, so be VERY CAREFUL about extending
+    this endpoint
+    """
+    code_list = attempt_codes.split(',')
+
+    attempts = ProctoredExamStudentAttempt.objects.filter(
+         attempt_code__in=code_list
+    )
+    if len(attempts):
+        return HttpResponse(
+            content='You have entered an exam codes that are not valid.',
+            status=404
+        )
+
+
+    for attempt_obj in attempts:
+        attempt = _get_exam_attempt(attempt_obj)
+        mark_exam_attempt_as_ready(attempt['proctored_exam']['id'], attempt['user']['id'])
+        provider_name = get_provider_name_by_course_id(attempt['proctored_exam']['course_id'])
+        proctoring_settings = get_proctoring_settings(provider_name)
+
+    template = loader.get_template(
+        'proctoring/proctoring_launch_callback.html'
+    )
+    return HttpResponse(
+        template.render(
+            Context({
+                'exam_attempt_status_url': '',
                 'platform_name': settings.PLATFORM_NAME,
                 'link_urls': proctoring_settings.get('LINK_URLS', {})
             })
@@ -134,6 +182,46 @@ class ExamReviewCallback(APIView):
                 },
                 status=400
             )
+
+        return Response(
+            data='OK',
+            status=200
+        )
+
+
+class BulkExamReviewCallback(APIView):
+    """
+    This endpoint is called by a 3rd party proctoring review service when
+    there are results available for us to record
+
+    IMPORTANT: This is an unauthenticated endpoint, so be VERY CAREFUL about extending
+    this endpoint
+    """
+
+    content_negotiation_class = IgnoreClientContentNegotiation
+
+    def post(self, request):
+        """
+        Post callback handler
+        """
+        data = request.DATA
+        course_id = ""
+        for review in data:
+            try:
+                attempt_code = review['examMetaData']['examCode']
+            except KeyError, ex:
+                continue
+            attempt_obj, is_archived_attempt = locate_attempt_by_attempt_code(attempt_code)
+            if course_id != attempt_obj.proctored_exam.course_id:
+                course_id = attempt_obj.proctored_exam.course_id
+                provider_name = get_provider_name_by_course_id(course_id)
+                provider = get_backend_provider(provider_name)
+
+            # call down into the underlying provider code
+            try:
+                provider.on_review_callback(review)
+            except ProctoredBaseException, ex:
+                log.exception(ex)
 
         return Response(
             data='OK',
