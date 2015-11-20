@@ -52,9 +52,9 @@ class ProctoredExam(TimeStampedModel):
         How to serialize myself as a string
         """
 
-        return "{course_id}: {exam_name} ({active})".format(
+        return u"{course_id}: {exam_name} ({active})".format(
             course_id=self.course_id,
-            exam_name=self.exam_name,
+            exam_name=self.exam_name.encode('utf-8'),
             active='active' if self.is_active else 'inactive',
         )
 
