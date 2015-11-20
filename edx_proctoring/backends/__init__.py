@@ -32,7 +32,7 @@ def _get_proctoring_config(provider_name):
     return proctors_config[provider_name]
 
 
-def get_backend_provider(provider_name, emphemeral=False):
+def get_backend_provider(provider_name, emphemeral=True):
     """
     Returns an instance of the configured backend provider that is configured
     via the settings file
