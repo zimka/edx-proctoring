@@ -33,7 +33,7 @@ Also in your lms.env.json and cms.env.json file you can add the following (optio
         "ALLOW_CALLBACK_SIMULATION": False,
         "CLIENT_TIMEOUT": 30,
         "DEFAULT_REVIEW_POLICY": "Closed Book",
-        "REQUIRE_FAILURE_SECOND_REVIEWS": True
+        "REQUIRE_FAILURE_SECOND_REVIEWS": False
     },
 ```
 **Note** Settings for each provider moved to its PROCTORING_BACKEND_PROVIDERS's `settings`. See below.
