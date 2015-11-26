@@ -711,7 +711,7 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
         credit_state = credit_service.get_credit_state(
             exam_attempt_obj.user_id,
             exam_attempt_obj.proctored_exam.course_id,
-            return_course_name=True
+            #return_course_name=True
         )
 
         send_proctoring_attempt_status_email(
