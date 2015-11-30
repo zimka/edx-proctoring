@@ -66,6 +66,11 @@ urlpatterns = patterns(  # pylint: disable=invalid-name
         views.ActiveExamsForUserView.as_view(),
         name='edx_proctoring.proctored_exam.active_exams_for_user'
     ),
+    url(
+        r'edx_proctoring/v1/proctoring_services/{}/$'.format(settings.COURSE_ID_PATTERN),
+        views.ProctoringServices.as_view(),
+        name='edx_proctoring.proctoring_services'
+    ),
     #
     # Unauthenticated callbacks from SoftwareSecure. Note we use other
     # security token measures to protect data

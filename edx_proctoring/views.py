@@ -43,6 +43,9 @@ from edx_proctoring.serializers import ProctoredExamSerializer, ProctoredExamStu
 from edx_proctoring.models import ProctoredExamStudentAttemptStatus, ProctoredExamStudentAttempt
 
 from .utils import AuthenticatedAPIView, get_time_remaining_for_attempt, humanized_time
+from xmodule.modulestore.django import modulestore
+from opaque_keys.edx.keys import CourseKey
+
 
 ATTEMPTS_PER_PAGE = 25
 
@@ -709,3 +712,50 @@ class ActiveExamsForUserView(AuthenticatedAPIView):
             user_id=request.DATA.get('user_id', None),
             course_id=request.DATA.get('course_id', None)
         ))
+
+
+class ProctoringServices(AuthenticatedAPIView):
+    def get(self, request, course_id):
+        """
+        Returns: current proctoring provider by course_id and list of available providers
+
+        Send PUT request to change current proctoring provider. JSON example:
+
+        ```
+        {"proctoring_service":"ITMO"}
+        ```
+
+        """
+        course_key = CourseKey.from_string(course_id)
+
+        try:
+            course = modulestore().get_course(course_key)
+        except:
+            return Response("Course with this course id doesn't exist",
+                            status=404)
+        list = []
+        all_providers = settings.PROCTORING_BACKEND_PROVIDERS.keys()
+        available_providers = course.available_proctoring_services.split(',')
+        for provider in available_providers:
+            if provider in all_providers:
+                list.append(provider)
+        return Response({
+            "current": course.proctoring_service,
+            "list": list})
+
+    def put(self, request, course_id):
+        course_key = CourseKey.from_string(course_id)
+        try:
+            course = modulestore().get_course(course_key)
+        except:
+            return Response("Course with this course id doesn't exist",
+                            status=404)
+        available_providers = course.available_proctoring_services.split(',')
+        proctoring_service = request.DATA.get("proctoring_service")
+        if proctoring_service not in available_providers:
+            return Response(
+                {"error", "This proctoring service is not available"},
+                status=403)
+        course.proctoring_service = proctoring_service
+        modulestore().update_item(course, request.user.id)
+        return Response({"status": "OK"})
