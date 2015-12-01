@@ -13,6 +13,7 @@ from django.core.urlresolvers import reverse, NoReverseMatch
 
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from edx_proctoring.api import (
     create_exam,
@@ -762,7 +763,7 @@ class ProctoringServices(AuthenticatedAPIView):
         return Response({"status": "OK"})
 
 
-class StudentProctoredExamAttemptByCode(AuthenticatedAPIView):
+class StudentProctoredExamAttemptByCode(APIView):
     """
     Endpoint for the StudentProctoredExamAttempt
     /edx_proctoring/v1/proctored_exam/attempt
@@ -788,6 +789,8 @@ class StudentProctoredExamAttemptByCode(AuthenticatedAPIView):
         ** Scenarios **
         return the status of the exam attempt
     """
+    
+    permission_classes = (IsAuthenticated,)
 
     def put(self, request, attempt_code):
         """
