@@ -28,6 +28,7 @@ from edx_proctoring.api import (
     get_allowances_for_course,
     get_all_exams_for_course,
     get_exam_attempt_by_id,
+    get_exam_attempt_by_code,
     remove_exam_attempt,
     update_attempt_status
 )
@@ -759,3 +760,65 @@ class ProctoringServices(AuthenticatedAPIView):
         course.proctoring_service = proctoring_service
         modulestore().update_item(course, request.user.id)
         return Response({"status": "OK"})
+
+
+class StudentProctoredExamAttemptByCode(AuthenticatedAPIView):
+    """
+    Endpoint for the StudentProctoredExamAttempt
+    /edx_proctoring/v1/proctored_exam/attempt
+
+    Supports:
+        HTTP PUT: Stops an exam attempt.
+
+
+    HTTP PUT
+    Stops the existing exam attempt in progress
+    PUT data : {
+        ....
+    }
+
+    **PUT data Parameters**
+        * exam_code: The unique identifier for the proctored exam attempt.
+
+    **Response Values**
+        * {'exam_attempt_id': ##}, The exam_attempt_id of the Proctored Exam Attempt..
+
+
+    HTTP GET
+        ** Scenarios **
+        return the status of the exam attempt
+    """
+
+    def put(self, request, attempt_code):
+        """
+        HTTP POST handler. To stop an exam.
+        """
+        try:
+            attempt = get_exam_attempt_by_code(attempt_code)
+
+            if not attempt:
+                err_msg = (
+                    'Attempted to access attempt_code {attempt_code} but '
+                    'it does not exist.'.format(
+                        attempt_code=attempt_code
+                    )
+                )
+                raise StudentExamAttemptDoesNotExistsException(err_msg)
+
+            action = request.DATA.get('action')
+
+            if action == 'submit':
+                exam_attempt_id = update_attempt_status(
+                    attempt['proctored_exam']['id'],
+                    request.user.id,
+                    ProctoredExamStudentAttemptStatus.submitted
+                )
+
+            return Response({"exam_attempt_id": exam_attempt_id})
+
+        except ProctoredBaseException, ex:
+            LOG.exception(ex)
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"detail": str(ex)}
+            )
