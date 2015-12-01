@@ -14,7 +14,6 @@ from django.core.urlresolvers import reverse, NoReverseMatch
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from edx_proctoring.api import (
     create_exam,
@@ -790,8 +789,6 @@ class StudentProctoredExamAttemptByCode(APIView):
         ** Scenarios **
         return the status of the exam attempt
     """
-    
-    permission_classes = (IsAuthenticated,)
 
     def put(self, request, attempt_code):
         """
