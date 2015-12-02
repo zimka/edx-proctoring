@@ -808,7 +808,7 @@ class StudentProctoredExamAttemptByCode(APIView):
 
             action = request.DATA.get('action')
 
-            if action == 'submit':
+            if action and action == 'submit':
                 exam_attempt_id = update_attempt_status(
                     attempt['proctored_exam']['id'],
                     request.user.id,
