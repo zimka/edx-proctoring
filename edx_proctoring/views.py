@@ -807,11 +807,12 @@ class StudentProctoredExamAttemptByCode(APIView):
                 raise StudentExamAttemptDoesNotExistsException(err_msg)
 
             action = request.DATA.get('action')
+            user_id = request.DATA.get('user_id')
 
             if action and action == 'submit':
                 exam_attempt_id = update_attempt_status(
                     attempt['proctored_exam']['id'],
-                    request.user.id,
+                    user_id,
                     ProctoredExamStudentAttemptStatus.submitted
                 )
 
