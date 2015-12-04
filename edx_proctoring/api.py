@@ -361,14 +361,14 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
     review_policy_exception = ProctoredExamStudentAllowance.get_review_policy_exception(exam_id, user_id)
 
     if taking_as_proctored:
-        content_id = exam.content_id.split('@')[-1]  # get hash
+        content_id = exam['content_id'].split('@')[-1]  # get hash
         scheme = 'https' if getattr(settings, 'HTTPS', 'on') == 'on' else 'http'
         callback_url = '{scheme}://{hostname}{path}'.format(
             scheme=scheme,
             hostname=settings.SITE_NAME,
             path=reverse(
                 'jump_to_id', 
-                kwargs={'course_id': exam.course_id, 'module_id': content_id}
+                kwargs={'course_id': exam['course_id'], 'module_id': content_id}
             )
         )
 
