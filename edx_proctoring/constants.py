@@ -22,3 +22,9 @@ ALLOW_REVIEW_UPDATES = (
     'ALLOW_REVIEW_UPDATES' in settings.PROCTORING_SETTINGS
     else getattr(settings, 'ALLOW_REVIEW_UPDATES', False)
 )
+
+CLIENT_TIMEOUT = (
+    settings.PROCTORING_SETTINGS['CLIENT_TIMEOUT'] if
+    'CLIENT_TIMEOUT' in settings.PROCTORING_SETTINGS
+    else getattr(settings, 'CLIENT_TIMEOUT', 30)
+)
