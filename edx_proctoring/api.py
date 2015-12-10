@@ -377,14 +377,14 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
 
         credit_service = get_runtime_service('credit')
         user = User.objects.get(pk=user_id)
-
-        if credit_service:
+        if user.profile:
+            user = User.objects.get(pk=user_id)
+            full_name = user.profile.name
+        elif credit_service:
             credit_state = credit_service.get_credit_state(user_id, exam['course_id'])
             full_name = credit_state['profile_fullname']
-        else:
-            user = User.objects.get(pk=user_id)
-            full_name = user.profile.name if user.profile else " ".join(
-                (user.first_name, user.lastname))
+
+
         context = {
             'time_limit_mins': allowed_time_limit_mins,
             'attempt_code': attempt_code,
