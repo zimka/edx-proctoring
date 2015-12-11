@@ -377,12 +377,6 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
 
         credit_service = get_runtime_service('credit')
         user = User.objects.get(pk=user_id)
-        if user.profile:
-            user = User.objects.get(pk=user_id)
-            full_name = user.profile.name
-        elif credit_service:
-            credit_state = credit_service.get_credit_state(user_id, exam['course_id'])
-            full_name = credit_state['profile_fullname']
 
 
         context = {
@@ -391,7 +385,7 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
             'is_sample_attempt': exam['is_practice_exam'],
             'callback_url': callback_url,
             'user_id': user_id,
-            'full_name': full_name,
+            'full_name': " ".join((user.first_name,user.last_name)),
             'username': user.username,
             'email': user.email
         }
