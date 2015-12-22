@@ -1,6 +1,7 @@
 """
 Data models for the proctoring subsystem
 """
+import hashlib
 from django.db import models
 from django.db.models import Q
 from django.db.models.signals import pre_save, pre_delete
@@ -91,6 +92,15 @@ class ProctoredExam(TimeStampedModel):
         if active_only:
             result = result.filter(is_active=True)
         return result
+        
+    def generate_hash(self):
+        """
+        Generate hash for proctored exam
+        Refreshed every time when student retakes attempt for the same exam
+        :return: string
+        """
+        str_to_hash = str(self.content_id) + str(self.course_id)
+        return hashlib.md5(str_to_hash).hexdigest()
 
 
 class ProctoredExamStudentAttemptStatus(object):
