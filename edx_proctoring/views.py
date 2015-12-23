@@ -815,6 +815,13 @@ class StudentProctoredExamAttemptByCode(APIView):
                     user_id,
                     ProctoredExamStudentAttemptStatus.submitted
                 )
+                
+            if action and action == 'fail':
+                exam_attempt_id = update_attempt_status(
+                    attempt['proctored_exam']['id'],
+                    user_id,
+                    ProctoredExamStudentAttemptStatus.error
+                )
 
             return Response({"exam_attempt_id": exam_attempt_id})
 
