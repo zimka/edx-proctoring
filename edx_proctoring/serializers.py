@@ -20,7 +20,7 @@ class ProctoredExamSerializer(serializers.ModelSerializer):
     is_practice_exam = serializers.BooleanField(required=True)
     is_proctored = serializers.BooleanField(required=True)
     
-    attempt_hash = serializers.CharField(required=True)
+    # attempt_hash = serializers.CharField(required=True)
 
     class Meta:
         """
