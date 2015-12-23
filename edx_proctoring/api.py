@@ -593,6 +593,15 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
         )
         raise ProctoredExamIllegalStatusTransition(err_msg)
 
+    if to_status == exam_attempt_obj.status:
+        log_msg = (
+            'Try to change attempt status for exam_id {exam_id} for user_id '
+            '{user_id} to the same status. Rejected'.format(
+                exam_id=exam_id, user_id=user_id
+            )
+        )
+        log.info(log_msg)
+        return exam_attempt_obj.id
     # OK, state transition is fine, we can proceed
     exam_attempt_obj.status = to_status
     exam_attempt_obj.save()
