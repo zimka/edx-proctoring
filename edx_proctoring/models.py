@@ -43,7 +43,7 @@ class ProctoredExam(TimeStampedModel):
     # Whether this exam will be active.
     is_active = models.BooleanField()
     
-    attempt_hash = models.CharField(max_length=50)
+    # attempt_hash = models.CharField(max_length=50)
 
     class Meta:
         """ Meta class for this Django model """
