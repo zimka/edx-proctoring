@@ -546,7 +546,7 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
     # as the user saying he/she wises to submit the exam
     alias_timeout = (
         to_status == ProctoredExamStudentAttemptStatus.timed_out and
-        not proctoring_settings.get('ALLOW_TIMED_OUT_STATE', False)
+        not proctoring_settings.get('ALLOW_TIMED_OUT_STATE', True)
     )
     if alias_timeout:
         to_status = ProctoredExamStudentAttemptStatus.submitted
