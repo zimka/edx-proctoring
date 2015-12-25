@@ -808,19 +808,27 @@ class StudentProctoredExamAttemptByCode(APIView):
 
             action = request.DATA.get('action')
             user_id = request.DATA.get('user_id')
+            exam_id = attempt['proctored_exam']['id']
 
             if action and action == 'submit':
                 exam_attempt_id = update_attempt_status(
-                    attempt['proctored_exam']['id'],
+                    exam_id,
                     user_id,
                     ProctoredExamStudentAttemptStatus.submitted
                 )
                 
             if action and action == 'fail':
                 exam_attempt_id = update_attempt_status(
-                    attempt['proctored_exam']['id'],
+                    exam_id,
                     user_id,
                     ProctoredExamStudentAttemptStatus.error
+                )
+                
+            if action and action == 'decline':
+                exam_attempt_id = update_attempt_status(
+                    exam_id,
+                    user_id,
+                    ProctoredExamStudentAttemptStatus.timed_out
                 )
 
             return Response({"exam_attempt_id": exam_attempt_id})
