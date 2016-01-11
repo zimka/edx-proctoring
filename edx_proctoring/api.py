@@ -542,16 +542,20 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
     exam = get_exam_by_id(exam_id)
     provider_name = get_provider_name_by_course_id(exam['course_id'])
     proctoring_settings = get_proctoring_settings(provider_name)
+    exam_attempt_obj = ProctoredExamStudentAttempt.objects.get_exam_attempt(exam_id, user_id)
+
+    timed_out_state = False
+    if exam_attempt_obj.status == ProctoredExamStudentAttemptStatus.created:
+        timed_out_state = True
     # In some configuration we may treat timeouts the same
     # as the user saying he/she wises to submit the exam
     alias_timeout = (
         to_status == ProctoredExamStudentAttemptStatus.timed_out and
-        not proctoring_settings.get('ALLOW_TIMED_OUT_STATE', True)
+        not proctoring_settings.get('ALLOW_TIMED_OUT_STATE', timed_out_state)
     )
     if alias_timeout:
         to_status = ProctoredExamStudentAttemptStatus.submitted
 
-    exam_attempt_obj = ProctoredExamStudentAttempt.objects.get_exam_attempt(exam_id, user_id)
     if exam_attempt_obj is None:
         if raise_if_not_found:
             raise StudentExamAttemptDoesNotExistsException('Error. Trying to look up an exam that does not exist.')
