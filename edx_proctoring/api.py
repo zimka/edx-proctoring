@@ -544,6 +544,12 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
     proctoring_settings = get_proctoring_settings(provider_name)
     exam_attempt_obj = ProctoredExamStudentAttempt.objects.get_exam_attempt(exam_id, user_id)
 
+    if exam_attempt_obj is None:
+        if raise_if_not_found:
+            raise StudentExamAttemptDoesNotExistsException('Error. Trying to look up an exam that does not exist.')
+        else:
+            return
+
     timed_out_state = False
     if exam_attempt_obj.status == ProctoredExamStudentAttemptStatus.created:
         timed_out_state = True
@@ -555,12 +561,6 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
     )
     if alias_timeout:
         to_status = ProctoredExamStudentAttemptStatus.submitted
-
-    if exam_attempt_obj is None:
-        if raise_if_not_found:
-            raise StudentExamAttemptDoesNotExistsException('Error. Trying to look up an exam that does not exist.')
-        else:
-            return
 
     #
     # don't allow state transitions from a completed state to an incomplete state
