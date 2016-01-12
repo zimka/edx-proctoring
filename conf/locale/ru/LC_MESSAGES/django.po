@@ -680,7 +680,7 @@ msgid ""
 "    "
 msgstr ""
 "\n"
-"      Попроьовать выполнить к контрольному задание с подтверждением личности\n"
+"      Попробовать выполнить контрольное задание с подтверждением личности\n"
 "    "
 
 #: edx_proctoring/templates/proctoring/seq_proctored_practice_exam_entrance.html:9
