@@ -325,17 +325,18 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
     """
     # for now the student is allowed the exam default
 
-    log_msg = (
-        'Creating exam attempt for exam_id {exam_id} for '
-        'user_id {user_id} with taking as proctored = {taking_as_proctored}'.format(
-            exam_id=exam_id, user_id=user_id, taking_as_proctored=taking_as_proctored
-        )
-    )
-    log.info(log_msg)
-
     exam = get_exam_by_id(exam_id)
     existing_attempt = ProctoredExamStudentAttempt.objects.get_exam_attempt(exam_id, user_id)
+
     if existing_attempt:
+        log_msg = (
+            'Creating exam attempt for exam_id {exam_id} for '
+            'user_id {user_id} with taking as proctored = {taking_as_proctored}'.format(
+                exam_id=exam_id, user_id=user_id, taking_as_proctored=taking_as_proctored
+            )
+        )
+        log.info(log_msg)
+
         if existing_attempt.is_sample_attempt:
             # Archive the existing attempt by deleting it.
             existing_attempt.delete_exam_attempt()
@@ -425,16 +426,18 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
     )
 
     log_msg = (
+        '{attempt_code} - {username} ({email})'
         'Created exam attempt ({attempt_id}) for exam_id {exam_id} for '
         'user_id {user_id} with taking as proctored = {taking_as_proctored} '
         'with allowed time limit minutes of {allowed_time_limit_mins}. '
-        'Attempt_code {attempt_code} was generated which has a '
         'external_id of {external_id}'.format(
             attempt_id=attempt.id, exam_id=exam_id, user_id=user_id,
             taking_as_proctored=taking_as_proctored,
             allowed_time_limit_mins=allowed_time_limit_mins,
             attempt_code=attempt_code,
-            external_id=external_id
+            external_id=external_id,
+            username=attempt.user.username,
+            email=attempt.user.email
         )
     )
     log.info(log_msg)
@@ -531,14 +534,6 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
     Internal helper to handle state transitions of attempt status
     """
 
-    log_msg = (
-        'Updating attempt status for exam_id {exam_id} '
-        'for user_id {user_id} to status {to_status}'.format(
-            exam_id=exam_id, user_id=user_id, to_status=to_status
-        )
-    )
-    log.info(log_msg)
-
     exam = get_exam_by_id(exam_id)
     provider_name = get_provider_name_by_course_id(exam['course_id'])
     proctoring_settings = get_proctoring_settings(provider_name)
@@ -549,6 +544,18 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
             raise StudentExamAttemptDoesNotExistsException('Error. Trying to look up an exam that does not exist.')
         else:
             return
+    else:
+        log_msg = (
+            '{attempt_code} - {username} ({email})'
+            'Updating attempt status for exam_id {exam_id} '
+            'for user_id {user_id} to status {to_status}'.format(
+            exam_id=exam_id, user_id=user_id, to_status=to_status,
+            attempt_code=exam_attempt_obj.attempt_code,
+            username=exam_attempt_obj.user.username,
+            email=exam_attempt_obj.user.email
+            )
+        )
+        log.info(log_msg)
 
     timed_out_state = False
     if exam_attempt_obj.status == ProctoredExamStudentAttemptStatus.created:
@@ -599,9 +606,13 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
 
     if to_status == exam_attempt_obj.status:
         log_msg = (
+            '{attempt_code} - {username} ({email})'
             'Try to change attempt status for exam_id {exam_id} for user_id '
             '{user_id} to the same status. Rejected'.format(
-                exam_id=exam_id, user_id=user_id
+                exam_id=exam_id, user_id=user_id,
+                attempt_code=exam_attempt_obj.attempt_code,
+                username=exam_attempt_obj.user.username,
+                email=exam_attempt_obj.user.email
             )
         )
         log.info(log_msg)
@@ -625,13 +636,17 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
             verification = 'failed'
 
         log_msg = (
+            '{attempt_code} - {username} ({email})'
             'Calling set_credit_requirement_status for '
             'user_id {user_id} on {course_id} for '
             'content_id {content_id}. Status: {status}'.format(
                 user_id=exam_attempt_obj.user_id,
                 course_id=exam['course_id'],
                 content_id=exam_attempt_obj.proctored_exam.content_id,
-                status=verification
+                status=verification,
+                attempt_code=exam_attempt_obj.attempt_code,
+                username=exam_attempt_obj.user.username,
+                email=exam_attempt_obj.user.email
             )
         )
         log.info(log_msg)
@@ -791,11 +806,6 @@ def remove_exam_attempt(attempt_id):
     Removes an exam attempt given the attempt id.
     """
 
-    log_msg = (
-        'Removing exam attempt {attempt_id}'.format(attempt_id=attempt_id)
-    )
-    log.info(log_msg)
-
     existing_attempt = ProctoredExamStudentAttempt.objects.get_exam_attempt_by_id(attempt_id)
     if not existing_attempt:
         err_msg = (
@@ -810,6 +820,17 @@ def remove_exam_attempt(attempt_id):
     course_id = existing_attempt.proctored_exam.course_id
     content_id = existing_attempt.proctored_exam.content_id
     to_status = existing_attempt.status
+
+    log_msg = (
+        '{attempt_code} - {username} ({email})'
+        'Removing exam attempt {attempt_id}'.format(
+            attempt_id=attempt_id,
+            attempt_code=existing_attempt.attempt_code,
+            username=username,
+            email=existing_attempt.user.email
+        )
+    )
+    log.info(log_msg)
 
     existing_attempt.delete_exam_attempt()
     instructor_service = get_runtime_service('instructor')
