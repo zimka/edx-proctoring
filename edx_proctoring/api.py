@@ -426,7 +426,7 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
     )
 
     log_msg = (
-        '{attempt_code} - {username} ({email})'
+        '{attempt_code} - {username} ({email}) '
         'Created exam attempt ({attempt_id}) for exam_id {exam_id} for '
         'user_id {user_id} with taking as proctored = {taking_as_proctored} '
         'with allowed time limit minutes of {allowed_time_limit_mins}. '
@@ -546,7 +546,7 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
             return
     else:
         log_msg = (
-            '{attempt_code} - {username} ({email})'
+            '{attempt_code} - {username} ({email}) '
             'Updating attempt status for exam_id {exam_id} '
             'for user_id {user_id} to status {to_status}'.format(
             exam_id=exam_id, user_id=user_id, to_status=to_status,
@@ -606,7 +606,7 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
 
     if to_status == exam_attempt_obj.status:
         log_msg = (
-            '{attempt_code} - {username} ({email})'
+            '{attempt_code} - {username} ({email}) '
             'Try to change attempt status for exam_id {exam_id} for user_id '
             '{user_id} to the same status. Rejected'.format(
                 exam_id=exam_id, user_id=user_id,
@@ -636,7 +636,7 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
             verification = 'failed'
 
         log_msg = (
-            '{attempt_code} - {username} ({email})'
+            '{attempt_code} - {username} ({email}) '
             'Calling set_credit_requirement_status for '
             'user_id {user_id} on {course_id} for '
             'content_id {content_id}. Status: {status}'.format(
@@ -822,7 +822,7 @@ def remove_exam_attempt(attempt_id):
     to_status = existing_attempt.status
 
     log_msg = (
-        '{attempt_code} - {username} ({email})'
+        '{attempt_code} - {username} ({email}) '
         'Removing exam attempt {attempt_id}'.format(
             attempt_id=attempt_id,
             attempt_code=existing_attempt.attempt_code,
