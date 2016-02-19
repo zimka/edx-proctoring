@@ -406,7 +406,10 @@ class StudentProctoredExamAttempt(AuthenticatedAPIView):
                 raise StudentExamAttemptDoesNotExistsException(err_msg)
 
             remove_exam_attempt(attempt_id)
-            return Response()
+            return Response(
+                status=status.HTTP_200_OK,
+                data={}
+            )
 
         except ProctoredBaseException, ex:
             LOG.exception(ex)
