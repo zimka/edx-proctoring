@@ -80,6 +80,9 @@
                 <thead>
                     <tr class="exam-attempt-headings">
                         <th class="username"><%- gettext("Username") %></th>
+                        <th class="username"><%- gettext("Email") %></th>
+                        <th class="username"><%- gettext("First name") %></th>
+                        <th class="username"><%- gettext("Last name") %></th>
                         <th class="exam-name"><%- gettext("Exam Name") %></th>
                         <th class="attempt-allowed-time"><%- gettext("Time Limit") %> </th>
                         <th class="attempt-started-at"><%- gettext("Started At") %></th>
@@ -94,6 +97,15 @@
                         <tr class="allowance-items">
                             <td>
                                 <%- interpolate(gettext(' %(username)s '), { username: proctored_exam_attempt.user.username }, true) %>
+                            </td>
+                            <td>
+                                <%- interpolate(gettext(' %(email)s '), { email: proctored_exam_attempt.user.email }, true) %>
+                            </td>
+                            <td>
+                                <%- interpolate(gettext(' %(first_name)s '), { first_name: proctored_exam_attempt.user.first_name }, true) %>
+                            </td>
+                            <td>
+                                <%- interpolate(gettext(' %(last_name)s '), { last_name: proctored_exam_attempt.user.last_name }, true) %>
                             </td>
                             <td>
                                 <%- interpolate(gettext(' %(exam_display_name)s '), { exam_display_name: proctored_exam_attempt.proctored_exam.exam_name }, true) %>

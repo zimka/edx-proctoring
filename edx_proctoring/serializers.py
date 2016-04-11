@@ -41,6 +41,8 @@ class UserSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     username = serializers.CharField(required=True)
     email = serializers.CharField(required=True)
+    first_name = serializers.IntegerField(required=False)
+    last_name = serializers.IntegerField(required=False)
 
     class Meta:
         """
@@ -49,7 +51,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
 
         fields = (
-            "id", "username", "email"
+            "id", "username", "email", "first_name", "last_name"
         )
 
 
