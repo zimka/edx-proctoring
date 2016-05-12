@@ -12,6 +12,8 @@ from django.utils.translation import ugettext as _
 from django.contrib.auth.models import User
 from edx_proctoring.exceptions import UserNotFoundException
 from django.db.models.base import ObjectDoesNotExist
+from opaque_keys.edx.keys import UsageKey
+from xmodule.modulestore.django import modulestore
 
 
 class ProctoredExam(TimeStampedModel):
@@ -103,6 +105,32 @@ class ProctoredExam(TimeStampedModel):
         """
         str_to_hash = str(self.content_id) + str(self.course_id)
         return hashlib.md5(str_to_hash).hexdigest()
+
+    @property
+    def deadline(self):
+        sequence_key = UsageKey.from_string(self.content_id)
+        sequence = modulestore().get_item(sequence_key)
+        oldest = None
+        due_dates = []
+        for vertical in sequence.get_children():
+            if vertical.due:
+                due_dates.append(vertical.due)
+
+        if due_dates:
+            oldest = min(due_dates)
+        return oldest
+
+    @property
+    def start(self):
+        sequence_key = UsageKey.from_string(self.content_id)
+        sequence = modulestore().get_item(sequence_key)
+        return sequence.start
+
+    @property
+    def visible_to_staff_only(self):
+        sequence_key = UsageKey.from_string(self.content_id)
+        sequence = modulestore().get_item(sequence_key)
+        return sequence.visible_to_staff_only
 
 
 class ProctoredExamStudentAttemptStatus(object):

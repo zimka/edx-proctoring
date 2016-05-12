@@ -19,6 +19,10 @@ class ProctoredExamSerializer(serializers.ModelSerializer):
     is_active = serializers.BooleanField(required=True)
     is_practice_exam = serializers.BooleanField(required=True)
     is_proctored = serializers.BooleanField(required=True)
+
+    deadline = DateTimeField(format=None)
+    start = DateTimeField(format=None)
+    visible_to_staff_only = serializers.BooleanField(required=True)
     
     # attempt_hash = serializers.CharField(required=True)
 
@@ -30,7 +34,8 @@ class ProctoredExamSerializer(serializers.ModelSerializer):
 
         fields = (
             "id", "course_id", "content_id", "external_id", "exam_name",
-            "time_limit_mins", "is_proctored", "is_practice_exam", "is_active"
+            "time_limit_mins", "is_proctored", "is_practice_exam", "is_active",
+            "deadline", "start", "visible_to_staff_only",
         )
 
 
