@@ -491,6 +491,11 @@ class StudentProctoredExamAttemptCollection(AuthenticatedAPIView):
                 critically_low_threshold_pct * float(attempt['allowed_time_limit_mins']) * 60
             )
 
+            npoed_threshold_pct = proctoring_settings.get('low_threshold_pct', .15)
+            npoed_low_threshold = int(npoed_threshold_pct * float(attempt['allowed_time_limit_mins']) * 60)
+            npoed_low_time = (npoed_low_threshold // 300) * 5 + 5
+            critically_low_time = (critically_low_threshold // 60) + 1
+
             exam_url_path = ''
             try:
                 # resolve the LMS url, note we can't assume we're running in
@@ -511,6 +516,9 @@ class StudentProctoredExamAttemptCollection(AuthenticatedAPIView):
                 'time_remaining_seconds': time_remaining_seconds,
                 'low_threshold_sec': low_threshold,
                 'critically_low_threshold_sec': critically_low_threshold,
+                'critically_low_time': critically_low_time,
+                'npoed_low_threshold_sec': npoed_low_threshold,
+                'npoed_low_time': npoed_low_time,
                 'course_id': exam['course_id'],
                 'attempt_id': attempt['id'],
                 'accessibility_time_string': _('you have {remaining_time} remaining').format(
