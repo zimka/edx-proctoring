@@ -803,7 +803,7 @@ def send_proctoring_attempt_status_email(exam_attempt_obj, course_name):
         headers=headers,
         from_email=get_proctor_settings_param(proctor_settings, 'FROM_EMAIL'),
         to=[exam_attempt_obj.user.email],
-        bcc=get_proctor_settings_param(proctor_settings, 'BCC_EMAIL'),
+        bcc=[get_proctor_settings_param(proctor_settings, 'BCC_EMAIL')],
         subject=subject
     )
     email.content_subtype = "html"
