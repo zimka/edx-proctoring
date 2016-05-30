@@ -59,7 +59,7 @@ LOG = logging.getLogger("edx_proctoring_views")
 def require_staff(func):
     """View decorator that requires that the user have staff permissions. """
     def wrapped(request, *args, **kwargs):  # pylint: disable=missing-docstring
-        if request.user.is_staff:
+        if request.user.is_staff or request.user.id in settings.USERS_WITH_SPECIAL_PERMS_IDS:
             return func(request, *args, **kwargs)
         else:
             return Response(
