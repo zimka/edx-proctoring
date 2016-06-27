@@ -15,8 +15,10 @@ from edx_proctoring.models import (
     ProctoredExamStudentAttempt,
     ProctoredExamStudentAttemptHistory,
 )
-from edx_proctoring import constants
-
+from edx_proctoring.backends import (
+    get_provider_name_by_course_id,
+    get_proctoring_settings
+)
 # import dependent libraries (in local_requirements.txt otherwise pick up from running Open edX LMS runtime)
 from eventtracking import tracker
 from opaque_keys.edx.keys import CourseKey
@@ -115,7 +117,9 @@ def locate_attempt_by_attempt_code(attempt_code):
         if not attempt_obj:
             # still can't find, error out
             err_msg = (
-                'Could not locate attempt_code: {attempt_code}'.format(attempt_code=attempt_code)
+                'Could not locate attempt_code: {attempt_code}'.format(
+                    attempt_code=attempt_code
+                )
             )
             log.error(err_msg)
 
@@ -130,9 +134,14 @@ def has_client_app_shutdown(attempt):
     # we never heard from the client, so it must not have started
     if not attempt['last_poll_timestamp']:
         return True
-
-    elapsed_time = (datetime.now(pytz.UTC) - attempt['last_poll_timestamp']).total_seconds()
-    return elapsed_time > constants.SOFTWARE_SECURE_SHUT_DOWN_GRACEPERIOD
+    elapsed_time = (
+        datetime.now(pytz.UTC) - attempt['last_poll_timestamp']
+    ).total_seconds()
+    provider_name = get_provider_name_by_course_id(
+        attempt['proctored_exam']['course_id']
+    )
+    proctoring_settings = get_proctoring_settings(provider_name)
+    return elapsed_time > proctoring_settings.get('SHUT_DOWN_GRACEPERIOD')
 
 
 def emit_event(exam, event_short_name, attempt=None, override_data=None):
@@ -185,7 +194,9 @@ def emit_event(exam, event_short_name, attempt=None, override_data=None):
             'attempt_event_elapsed_time_secs': attempt_event_elapsed_time_secs
         }
         data.update(attempt_data)
-        name = '.'.join(['edx', 'special_exam', exam_type, 'attempt', event_short_name])
+        name = '.'.join(
+            ['edx', 'special_exam', exam_type, 'attempt', event_short_name]
+        )
     else:
         name = '.'.join(['edx', 'special_exam', exam_type, event_short_name])
 
@@ -218,9 +229,19 @@ def _emit_event(name, context, data):
             # if None is passed in then we don't construct the 'with' context stack
             tracker.emit(name, data)
     except KeyError:
-        # This happens when a default tracker has not been registered by the host application
+        # This happens when a default tracker
+        # has not been registered by the host application
         # aka LMS. This is normal when running unit tests in isolation.
         log.warning(
             'Analytics tracker not properly configured. '
-            'If this message appears in a production environment, please investigate'
+            'If this message appears in a production environment,'
+            'please investigate'
         )
+
+
+def modulestore():
+    """
+    Import modulstore from xmodule for testing.
+    """
+    from xmodule.modulestore.django import modulestore as xmodulestore  # pylint: disable=import-error
+    return xmodulestore()

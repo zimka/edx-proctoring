@@ -140,8 +140,8 @@ var edx = edx || {};
                 var url = self.model.url + '/' + self.model.get('attempt_id');
                 var queryString = '?sourceid=in_exam&proctored=' + self.model.get('taking_as_proctored');
                 $.ajax(url + queryString).success(function(data) {
-                    if (data.status === 'error') {
-                        // The proctoring session is in error state
+                    if (data.status === 'error' || data.status === 'submitted') {
+                        // The proctoring session is in error state or has ended
                         // refresh the page to bring up the new Proctoring state from the backend.
                         clearInterval(self.timerId); // stop the timer once the time finishes.
                         $(window).unbind('beforeunload', self.unloadMessage);

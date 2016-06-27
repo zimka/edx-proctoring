@@ -13,12 +13,14 @@ from django.core.urlresolvers import reverse, NoReverseMatch
 
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from edx_proctoring.api import (
     create_exam,
     update_exam,
     get_exam_by_id,
     get_exam_by_content_id,
+    get_exam_attempt_by_code,
     start_exam_attempt,
     stop_exam_attempt,
     add_allowance_for_user,
@@ -45,15 +47,25 @@ from edx_proctoring.exceptions import (
 )
 from edx_proctoring import constants
 from edx_proctoring.runtime import get_runtime_service
-from edx_proctoring.serializers import ProctoredExamSerializer, ProctoredExamStudentAttemptSerializer
-from edx_proctoring.models import ProctoredExamStudentAttemptStatus, ProctoredExamStudentAttempt, ProctoredExam
-
+from edx_proctoring.serializers import (
+    ProctoredExamSerializer,
+    ProctoredExamStudentAttemptSerializer
+)
+from edx_proctoring.models import (
+    ProctoredExamStudentAttemptStatus,
+    ProctoredExamStudentAttempt,
+    ProctoredExam
+)
 from edx_proctoring.utils import (
     AuthenticatedAPIView,
     get_time_remaining_for_attempt,
     humanized_time,
     has_client_app_shutdown,
+    modulestore
 )
+
+from opaque_keys.edx.keys import CourseKey
+
 
 ATTEMPTS_PER_PAGE = 25
 
@@ -329,7 +341,7 @@ class StudentProctoredExamAttempt(AuthenticatedAPIView):
                 raise ProctoredExamPermissionDenied(err_msg)
 
             # check if the last_poll_timestamp is not None
-            # and if it is older than SOFTWARE_SECURE_CLIENT_TIMEOUT
+            # and if it is older than CLIENT_TIMEOUT
             # then attempt status should be marked as error.
             last_poll_timestamp = attempt['last_poll_timestamp']
 
@@ -827,6 +839,120 @@ class ProctoredExamAttemptReviewStatus(AuthenticatedAPIView):
             )
 
         except (StudentExamAttemptDoesNotExistsException, ProctoredExamPermissionDenied) as ex:
+            LOG.exception(ex)
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"detail": str(ex)}
+            )
+
+
+class ProctoringServices(AuthenticatedAPIView):
+    """
+    Endpoint for proctoring services edx_proctoring/v1/proctoring_services/<course_id>/.
+    Supports:
+        HTTP PUT: Change current proctoring provider
+        HTTP GET: Current proctoring provider by course_id and list of available providers
+    """
+
+    def get(self, request, course_id):  # pylint: disable=unused-argument
+        """
+        Returns: current proctoring provider by course_id and list of available providers
+        Send PUT request to change current proctoring provider. JSON example:
+        ```
+        {"proctoring_service":"SOFTWARE_SECURE"}
+        ```
+        """
+        course_key = CourseKey.from_string(course_id)
+        course = modulestore().get_course(course_key)
+        if course is None:
+            return Response(
+                "Course with this course id doesn't exist",
+                status=404
+            )
+
+        all_providers = settings.PROCTORING_BACKEND_PROVIDERS.keys()
+        available_providers = course.available_proctoring_services.split(',')
+        outs = [item for item in available_providers if item in all_providers]
+        return Response(
+            {
+                "current": course.proctoring_service,
+                "list": outs
+            }
+        )
+
+    def put(self, request, course_id):
+        """
+        HTTP PUT handler. To update an course.
+        """
+
+        course_key = CourseKey.from_string(course_id)
+        course = modulestore().get_course(course_key)
+        if course is None:
+            return Response(
+                "Course with this course id doesn't exist",
+                status=404
+            )
+        available_providers = course.available_proctoring_services.split(',')
+        proctoring_service = request.data.get("proctoring_service")
+        if proctoring_service not in available_providers:
+            return Response(
+                {"error", "This proctoring service is not available"},
+                status=403
+            )
+        course.proctoring_service = proctoring_service
+        modulestore().update_item(course, request.user.id)
+        return Response({"status": "OK"})
+
+
+class StudentProctoredExamAttemptByCode(APIView):
+    """
+    Endpoint for the StudentProctoredExamAttempt
+    /edx_proctoring/v1/proctored_exam/attempt
+    Supports:
+        HTTP PUT: Stops an exam attempt.
+    HTTP PUT
+    Stops the existing exam attempt in progress
+    PUT data : {
+        ....
+    }
+    **PUT data Parameters**
+        * exam_code: The unique identifier for the proctored exam attempt.
+    **Response Values**
+        * {'exam_attempt_id': ##}, The exam_attempt_id of the Proctored Exam Attempt..
+    HTTP GET
+        ** Scenarios **
+        return the status of the exam attempt
+    """
+
+    def put(self, request, attempt_code):
+        """
+        HTTP POST handler. To stop an exam.
+        """
+        try:
+            attempt = get_exam_attempt_by_code(attempt_code)
+
+            if not attempt:
+                err_msg = (
+                    'Attempted to access attempt_code {attempt_code} but '
+                    'it does not exist.'.format(
+                        attempt_code=attempt_code
+                    )
+                )
+                raise StudentExamAttemptDoesNotExistsException(err_msg)
+
+            action = request.DATA.get('action')
+            user_id = request.DATA.get('user_id')
+
+            if action and action == 'submit':
+                exam_attempt_id = update_attempt_status(
+                    attempt['proctored_exam']['id'],
+                    user_id,
+                    ProctoredExamStudentAttemptStatus.submitted
+                )
+
+            return Response({"exam_attempt_id": exam_attempt_id})
+
+        except ProctoredBaseException, ex:
             LOG.exception(ex)
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,

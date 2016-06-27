@@ -2,6 +2,8 @@
 """
 Data models for the proctoring subsystem
 """
+import hashlib
+
 from django.db import models
 from django.db.models import Q
 from django.db.models.signals import pre_save, pre_delete
@@ -76,7 +78,9 @@ class ProctoredExam(TimeStampedModel):
         Given course_id and content_id
         """
         try:
-            proctored_exam = cls.objects.get(course_id=course_id, content_id=content_id)
+            proctored_exam = cls.objects.get(
+                course_id=course_id, content_id=content_id
+            )
         except cls.DoesNotExist:  # pylint: disable=no-member
             proctored_exam = None
         return proctored_exam
@@ -109,6 +113,15 @@ class ProctoredExam(TimeStampedModel):
             filtered_query = filtered_query & Q(is_proctored=True) & Q(is_practice_exam=False)
 
         return cls.objects.filter(filtered_query)
+
+    def generate_hash(self):
+        """
+        Generate hash for proctored exam
+        Refreshed every time when student retakes attempt for the same exam
+        :return: string
+        """
+        str_to_hash = str(self.content_id) + str(self.course_id)
+        return hashlib.md5(str_to_hash).hexdigest()
 
 
 class ProctoredExamStudentAttemptStatus(object):
@@ -185,8 +198,8 @@ class ProctoredExamStudentAttemptStatus(object):
         that it cannot go backwards in state
         """
         return status in [
-            cls.declined, cls.timed_out, cls.submitted, cls.second_review_required,
-            cls.verified, cls.rejected, cls.error
+            cls.declined, cls.timed_out, cls.submitted,
+            cls.second_review_required, cls.verified, cls.rejected, cls.error
         ]
 
     @classmethod
@@ -195,14 +208,15 @@ class ProctoredExamStudentAttemptStatus(object):
         Returns a boolean if the passed in status is in an "incomplete" state.
         """
         return status in [
-            cls.eligible, cls.created, cls.download_software_clicked, cls.ready_to_start, cls.started,
-            cls.ready_to_submit
+            cls.eligible, cls.created, cls.download_software_clicked,
+            cls.ready_to_start, cls.started, cls.ready_to_submit
         ]
 
     @classmethod
     def needs_credit_status_update(cls, to_status):
         """
-        Returns a boolean if the passed in to_status calls for an update to the credit requirement status.
+        Returns a boolean if the passed in to_status calls
+        for an update to the credit requirement status.
         """
         return to_status in [
             cls.verified, cls.rejected, cls.declined, cls.submitted, cls.error
@@ -211,22 +225,18 @@ class ProctoredExamStudentAttemptStatus(object):
     @classmethod
     def is_a_cascadable_failure(cls, to_status):
         """
-        Returns a boolean if the passed in to_status has a failure that needs to be cascaded
-        to other unattempted exams.
+        Returns a boolean if the passed in to_status has a failure
+        that needs to be cascaded to other unattempted exams.
         """
-        return to_status in [
-            cls.declined
-        ]
+        return to_status in [cls.declined]
 
     @classmethod
     def needs_status_change_email(cls, to_status):
         """
-        We need to send out emails for rejected, verified and submitted statuses.
+        We need to send out emails for rejected,
+        verified and submitted statuses.
         """
-
-        return to_status in [
-            cls.rejected, cls.submitted, cls.verified
-        ]
+        return to_status in [cls.rejected, cls.submitted, cls.verified]
 
     @classmethod
     def get_status_alias(cls, status):
@@ -649,7 +659,7 @@ def on_attempt_updated(sender, instance, **kwargs):  # pylint: disable=unused-ar
             archive_object.save()
 
 
-class QuerySetWithUpdateOverride(models.QuerySet):
+class QuerySetWithUpdateOverride(models.query.QuerySet):
     """
     Custom QuerySet class to make an archive copy
     every time the object is updated.
@@ -1007,10 +1017,10 @@ class ProctoredExamSoftwareSecureComment(TimeStampedModel):
     review = models.ForeignKey(ProctoredExamSoftwareSecureReview)
 
     # start time in the video, in seconds, regarding the comment
-    start_time = models.IntegerField()
+    start_time = models.BigIntegerField()
 
     # stop time in the video, in seconds, regarding the comment
-    stop_time = models.IntegerField()
+    stop_time = models.BigIntegerField()
 
     # length of time, in seconds, regarding the comment
     duration = models.IntegerField()
