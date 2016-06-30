@@ -949,7 +949,7 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
         credit_state = credit_service.get_credit_state(
             exam_attempt_obj.user_id,
             exam_attempt_obj.proctored_exam.course_id,
-            return_course_info=True
+            return_course_name=True
         )
 
         send_proctoring_attempt_status_email(
@@ -1061,7 +1061,7 @@ def remove_exam_attempt(attempt_id, requesting_user):
     instructor_service = get_runtime_service('instructor')
 
     if instructor_service:
-        instructor_service.delete_student_attempt(username, course_id, content_id, requesting_user=requesting_user)
+        instructor_service.delete_student_attempt(username, course_id, content_id)
 
     # see if the status transition this changes credit requirement status
     if ProctoredExamStudentAttemptStatus.needs_credit_status_update(to_status):
@@ -1450,7 +1450,7 @@ def get_attempt_status_summary(user_id, course_id, content_id):
     # practice exams always has an attempt status regardless of
     # eligibility
     if credit_service and not exam['is_practice_exam']:
-        credit_state = credit_service.get_credit_state(user_id, unicode(course_id), return_course_info=True)
+        credit_state = credit_service.get_credit_state(user_id, unicode(course_id), return_course_name=True)
         if not _check_eligibility_of_enrollment_mode(credit_state):
             return None
 
