@@ -48,7 +48,8 @@ class ProctoredExamModelTests(LoggedInTestCase):
         """
         Test to Save and update the proctored Exam Student Allowance object.
         Upon first save, a new entry is _not_ created in the History table
-        However, a new entry in the History table is created every time the Student Allowance entry is updated.
+        However, a new entry in the History table
+        is created every time the Student Allowance entry is updated.
         """
         proctored_exam = ProctoredExam.objects.create(
             course_id='test_course',
@@ -94,7 +95,10 @@ class ProctoredExamModelTests(LoggedInTestCase):
 
         # also check with save() method
 
-        allowance = ProctoredExamStudentAllowance.objects.get(user_id=1, proctored_exam=proctored_exam)
+        allowance = ProctoredExamStudentAllowance.objects.get(
+            user_id=1,
+            proctored_exam=proctored_exam
+        )
         allowance.value = '15 minutes'
         allowance.save()
 
@@ -105,7 +109,8 @@ class ProctoredExamModelTests(LoggedInTestCase):
         """
         Test to delete the proctored Exam Student Allowance object.
         Upon first save, a new entry is _not_ created in the History table
-        However, a new entry in the History table is created every time the Student Allowance entry is updated.
+        However, a new entry in the History table is created every time
+        the Student Allowance entry is updated.
         """
         proctored_exam = ProctoredExam.objects.create(
             course_id='test_course',
@@ -130,6 +135,21 @@ class ProctoredExamModelTests(LoggedInTestCase):
         proctored_exam_student_history = ProctoredExamStudentAllowanceHistory.objects.filter(user_id=1)
         self.assertEqual(len(proctored_exam_student_history), 1)
 
+    def test_generate_hash(self):
+        """
+        Test for generate hash code
+        """
+        proctored_exam = ProctoredExam.objects.create(
+            course_id='test_course',
+            content_id='test_content',
+            exam_name='Test Exam',
+            external_id='123aXqe3',
+            time_limit_mins=90
+        )
+        result = proctored_exam.generate_hash()
+        self.assertEqual(type(result), str)
+        self.assertRegexpMatches(result, r"([a-fA-F\d]{32})")
+
 
 class ProctoredExamStudentAttemptTests(LoggedInTestCase):
     """
@@ -153,7 +173,8 @@ class ProctoredExamStudentAttemptTests(LoggedInTestCase):
 
     def test_delete_proctored_exam_attempt(self):  # pylint: disable=invalid-name
         """
-        Deleting the proctored exam attempt creates an entry in the history table.
+        Deleting the proctored exam attempt creates an entry
+        in the history table.
         """
         proctored_exam = ProctoredExam.objects.create(
             course_id='test_course',
@@ -175,12 +196,16 @@ class ProctoredExamStudentAttemptTests(LoggedInTestCase):
         )
 
         # No entry in the History table on creation of the Allowance entry.
-        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(user_id=1)
+        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(
+            user_id=1
+        )
         self.assertEqual(len(attempt_history), 0)
 
         attempt.delete_exam_attempt()
 
-        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(user_id=1)
+        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(
+            user_id=1
+        )
         self.assertEqual(len(attempt_history), 1)
 
         # make sure we can ready it back with helper class method
@@ -201,7 +226,9 @@ class ProctoredExamStudentAttemptTests(LoggedInTestCase):
 
         attempt.delete_exam_attempt()
 
-        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(user_id=1)
+        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(
+            user_id=1
+        )
         self.assertEqual(len(attempt_history), 2)
 
         deleted_item = ProctoredExamStudentAttemptHistory.get_exam_attempt_by_code("123456")
@@ -209,7 +236,8 @@ class ProctoredExamStudentAttemptTests(LoggedInTestCase):
 
     def test_update_proctored_exam_attempt(self):
         """
-        Deleting the proctored exam attempt creates an entry in the history table.
+        Deleting the proctored exam attempt creates an entry
+        in the history table.
         """
         proctored_exam = ProctoredExam.objects.create(
             course_id='test_course',
@@ -231,27 +259,36 @@ class ProctoredExamStudentAttemptTests(LoggedInTestCase):
         )
 
         # No entry in the History table on creation of the Allowance entry.
-        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(user_id=1)
+        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(
+            user_id=1
+        )
         self.assertEqual(len(attempt_history), 0)
 
         # re-saving, but not changing status should not make an archive copy
         attempt.student_name = 'John. D Updated'
         attempt.save()
 
-        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(user_id=1)
+        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(
+            user_id=1
+        )
         self.assertEqual(len(attempt_history), 0)
 
         # change status...
         attempt.status = ProctoredExamStudentAttemptStatus.started
         attempt.save()
 
-        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(user_id=1)
+        attempt_history = ProctoredExamStudentAttemptHistory.objects.filter(
+            user_id=1
+        )
         self.assertEqual(len(attempt_history), 1)
 
         # make sure we can ready it back with helper class method
         updated_item = ProctoredExamStudentAttemptHistory.get_exam_attempt_by_code("123456")
         self.assertEqual(updated_item.student_name, "John. D Updated")
-        self.assertEqual(updated_item.status, ProctoredExamStudentAttemptStatus.created)
+        self.assertEqual(
+            updated_item.status,
+            ProctoredExamStudentAttemptStatus.created
+        )
 
     def test_get_exam_attempts(self):
         """
@@ -269,8 +306,14 @@ class ProctoredExamStudentAttemptTests(LoggedInTestCase):
         # create number of exam attempts
         for i in range(90):
             ProctoredExamStudentAttempt.create_exam_attempt(
-                proctored_exam.id, i, 'test_name{0}'.format(i), i + 1,
-                'test_attempt_code{0}'.format(i), True, False, 'test_external_id{0}'.format(i)
+                proctored_exam.id,
+                i,
+                'test_name{0}'.format(i),
+                i + 1,
+                'test_attempt_code{0}'.format(i),
+                True,
+                False,
+                'test_external_id{0}'.format(i)
             )
 
         with self.assertNumQueries(1):
@@ -279,7 +322,8 @@ class ProctoredExamStudentAttemptTests(LoggedInTestCase):
 
     def test_exam_review_policy(self):
         """
-        Assert correct behavior of the Exam Policy model including archiving of updates and deletes
+        Assert correct behavior of the Exam Policy model including archiving
+        of updates and deletes
         """
 
         # Create an exam.
@@ -349,7 +393,8 @@ class ProctoredExamStudentAttemptTests(LoggedInTestCase):
         with self.assertRaises(NotImplementedError):
             previous.delete()
 
-        # now delete attempt, to make sure we preserve the policy_id in the archive table
+        # now delete attempt, to make sure we preserve the policy_id
+        # in the archive table
         attempt.delete()
 
         attempts = ProctoredExamStudentAttemptHistory.objects.all()

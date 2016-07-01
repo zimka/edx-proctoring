@@ -5,11 +5,16 @@ Tests for the set_attempt_status management command
 from datetime import datetime
 import pytz
 
-from edx_proctoring.tests.utils import LoggedInTestCase
+from mock import patch
+from edx_proctoring.tests.utils import LoggedInTestCase, get_provider_name_test
+
 from edx_proctoring.api import create_exam, get_exam_attempt
 from edx_proctoring.management.commands import set_attempt_status
 
-from edx_proctoring.models import ProctoredExamStudentAttemptStatus, ProctoredExamStudentAttempt
+from edx_proctoring.models import (
+    ProctoredExamStudentAttemptStatus,
+    ProctoredExamStudentAttempt
+)
 from edx_proctoring.tests.test_services import (
     MockCreditService,
 )
@@ -45,6 +50,10 @@ class SetAttemptStatusTests(LoggedInTestCase):
             is_sample_attempt=False
         )
 
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_test
+    )
     def test_run_comand(self):
         """
         Run the management command
@@ -57,7 +66,9 @@ class SetAttemptStatusTests(LoggedInTestCase):
         )
 
         attempt = get_exam_attempt(self.exam_id, self.user.id)
-        self.assertEqual(attempt['status'], ProctoredExamStudentAttemptStatus.rejected)
+        self.assertEqual(
+            attempt['status'], ProctoredExamStudentAttemptStatus.rejected
+        )
 
         set_attempt_status.Command().handle(
             exam_id=self.exam_id,
@@ -66,7 +77,9 @@ class SetAttemptStatusTests(LoggedInTestCase):
         )
 
         attempt = get_exam_attempt(self.exam_id, self.user.id)
-        self.assertEqual(attempt['status'], ProctoredExamStudentAttemptStatus.verified)
+        self.assertEqual(
+            attempt['status'], ProctoredExamStudentAttemptStatus.verified
+        )
 
     def test_bad_status(self):
         """

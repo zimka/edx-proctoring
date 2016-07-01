@@ -45,8 +45,16 @@ from edx_proctoring.backends.tests.test_review_payload import (
     TEST_REVIEW_PAYLOAD
 )
 
-from edx_proctoring.tests.test_services import MockCreditService, MockInstructorService
-from edx_proctoring.backends.software_secure import SOFTWARE_SECURE_INVALID_CHARS
+from edx_proctoring.tests.test_services import (
+    MockCreditService,
+    MockInstructorService
+)
+from edx_proctoring.backends.software_secure import (
+    SOFTWARE_SECURE_INVALID_CHARS
+)
+from edx_proctoring.tests.utils import (
+    get_provider_name_software_secure
+)
 
 
 @all_requests
@@ -74,18 +82,26 @@ def mock_response_error(url, request):  # pylint: disable=unused-argument
 
 
 @patch(
-    'django.conf.settings.PROCTORING_BACKEND_PROVIDER',
-    {
-        "class": "edx_proctoring.backends.software_secure.SoftwareSecureBackendProvider",
-        "options": {
-            "secret_key_id": "foo",
-            "secret_key": "4B230FA45A6EC5AE8FDE2AFFACFABAA16D8A3D0B",
-            "crypto_key": "123456789123456712345678",
-            "exam_register_endpoint": "http://test",
-            "organization": "edx",
-            "exam_sponsor": "edX LMS",
-            "software_download_url": "http://example.com",
-            "send_email": True
+    'django.conf.settings.PROCTORING_BACKEND_PROVIDERS', {
+        "SOFTWARE_SECURE": {
+            "class": "edx_proctoring.backends.software_secure.SoftwareSecureBackendProvider",
+            "options": {
+                "secret_key_id": "foo",
+                "secret_key": "4B230FA45A6EC5AE8FDE2AFFACFABAA16D8A3D0B",
+                "crypto_key": "123456789123456712345678",
+                "exam_register_endpoint": "http://test",
+                "organization": "edx",
+                "exam_sponsor": "edX LMS",
+                "software_download_url": "http://example.com"
+            },
+            "settings": {
+                "LINK_URLS": {
+                    "contact_us": "{add link here}",
+                    "faq": "{add link here}",
+                    "online_proctoring_rules": "{add link here}",
+                    "tech_requirements": "{add link here}"
+                }
+            }
         }
     }
 )
@@ -117,7 +133,7 @@ class SoftwareSecureTests(TestCase):
         Makes sure the instance of the proctoring module can be created
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
         self.assertIsNotNone(provider)
 
     def test_get_software_download_url(self):
@@ -125,9 +141,20 @@ class SoftwareSecureTests(TestCase):
         Makes sure we get the expected download url
         """
 
-        provider = get_backend_provider()
-        self.assertEqual(provider.get_software_download_url(), 'http://example.com')
+        provider = get_backend_provider("SOFTWARE_SECURE")
+        self.assertEqual(
+            provider.get_software_download_url(), 'http://example.com'
+        )
 
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_register_attempt(self):
         """
         Makes sure we can register an attempt
@@ -142,17 +169,29 @@ class SoftwareSecureTests(TestCase):
         )
 
         with HTTMock(mock_response_content):
-            attempt_id = create_exam_attempt(exam_id, self.user.id, taking_as_proctored=True)
+            attempt_id = create_exam_attempt(
+                exam_id, self.user.id, taking_as_proctored=True
+            )
             self.assertIsNotNone(attempt_id)
 
             attempt = get_exam_attempt_by_id(attempt_id)
             self.assertEqual(attempt['external_id'], 'foobar')
             self.assertIsNone(attempt['started_at'])
 
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     @ddt.data(None, 'additional person allowed in room')
     def test_attempt_with_review_policy(self, review_policy_exception):
         """
-        Create an unstarted proctoring attempt with a review policy associated with it.
+        Create an unstarted proctoring attempt with a review policy
+        associated with it.
         """
 
         exam_id = create_exam(
@@ -179,16 +218,19 @@ class SoftwareSecureTests(TestCase):
 
         def assert_get_payload_mock(exam, context):
             """
-            Add a mock shim so we can assert that the _get_payload has been called with the right
-            review policy
+            Add a mock shim so we can assert that
+            the _get_payload has been called with the right review policy
             """
             self.assertIn('review_policy', context)
             self.assertEqual(policy.review_policy, context['review_policy'])
 
             # call into real implementation
-            result = get_backend_provider(emphemeral=True)._get_payload(exam, context)
+            result = get_backend_provider(
+                'SOFTWARE_SECURE', emphemeral=True
+            )._get_payload(exam, context)
 
-            # assert that this is in the 'reviewerNotes' field that is passed to SoftwareSecure
+            # assert that this is in the 'reviewerNotes'
+            # field that is passed to SoftwareSecure
             expected = context['review_policy']
             if review_policy_exception:
                 expected = '{base}; {exception}'.format(
@@ -202,9 +244,14 @@ class SoftwareSecureTests(TestCase):
         with HTTMock(mock_response_content):
             # patch the _get_payload method on the backend provider
             # so that we can assert that we are called with the review policy
-            # as well as asserting that _get_payload includes that review policy
+            # as well as asserting that
+            # _get_payload includes that review policy
             # that was passed in
-            with patch.object(get_backend_provider(), '_get_payload', assert_get_payload_mock):
+            with patch.object(
+                get_backend_provider("SOFTWARE_SECURE"),
+                '_get_payload',
+                assert_get_payload_mock
+            ):
                 attempt_id = create_exam_attempt(
                     exam_id,
                     self.user.id,
@@ -212,30 +259,49 @@ class SoftwareSecureTests(TestCase):
                 )
                 self.assertGreater(attempt_id, 0)
 
-                # make sure we recorded the policy id at the time this was created
+                # make sure we recorded the policy id
+                # at the time this was created
                 attempt = get_exam_attempt_by_id(attempt_id)
                 self.assertEqual(attempt['review_policy_id'], policy.id)
 
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_attempt_with_no_review_policy(self):
         """
-        Create an unstarted proctoring attempt with no review policy associated with it.
+        Create an unstarted proctoring attempt with no review policy
+        associated with it.
         """
 
         def assert_get_payload_mock_no_policy(exam, context):
             """
-            Add a mock shim so we can assert that the _get_payload has been called with the right
-            review policy
+            Add a mock shim so we can assert that
+            the _get_payload has been called with the right review policy
             """
             self.assertNotIn('review_policy', context)
 
             # call into real implementation
-            result = get_backend_provider(emphemeral=True)._get_payload(exam, context)  # pylint: disable=protected-access
+            result = get_backend_provider(
+                'SOFTWARE_SECURE', emphemeral=True
+            )._get_payload(exam, context)  # pylint: disable=protected-access
 
-            # assert that we use the default that is defined in system configuration
-            self.assertEqual(result['reviewerNotes'], constants.DEFAULT_SOFTWARE_SECURE_REVIEW_POLICY)
+            # assert that we use the default
+            # that is defined in system configuration
+            self.assertEqual(
+                result['reviewerNotes'],
+                constants.DEFAULT_SOFTWARE_SECURE_REVIEW_POLICY
+            )
 
-            # the check that if a colon was passed in for the exam name, then the colon was changed to
-            # a dash. This is because SoftwareSecure cannot handle a colon in the exam name
+            # the check that if a colon was passed in for the exam name,
+            # then the colon was changed to a dash.
+            # This is because SoftwareSecure cannot handle a colon
+            # in the exam name
             for illegal_char in SOFTWARE_SECURE_INVALID_CHARS:
                 if illegal_char in exam['exam_name']:
                     self.assertNotIn(illegal_char, result['examName'])
@@ -254,9 +320,15 @@ class SoftwareSecureTests(TestCase):
 
             with HTTMock(mock_response_content):
                 # patch the _get_payload method on the backend provider
-                # so that we can assert that we are called with the review policy
+                # so that we can assert that
+                # we are called with the review policy
                 # undefined and that we use the system default
-                with patch.object(get_backend_provider(), '_get_payload', assert_get_payload_mock_no_policy):  # pylint: disable=protected-access
+                patch_object = patch.object(
+                    get_backend_provider('SOFTWARE_SECURE'),
+                    '_get_payload',
+                    assert_get_payload_mock_no_policy
+                )
+                with patch_object:  # pylint: disable=protected-access
                     attempt_id = create_exam_attempt(
                         exam_id,
                         self.user.id,
@@ -268,10 +340,18 @@ class SoftwareSecureTests(TestCase):
                     attempt = get_exam_attempt_by_id(attempt_id)
                     self.assertIsNone(attempt['review_policy_id'])
 
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_attempt_with_unicode_characters(self):
         """
-        test that the unicode characters are removed from exam names before registering with
-        software secure.
+        test that the unicode characters are removed
+        from exam names before registering with software secure.
         """
 
         def is_ascii(value):
@@ -287,11 +367,14 @@ class SoftwareSecureTests(TestCase):
 
         def assert_get_payload_mock_unicode_characters(exam, context):
             """
-            Add a mock so we can assert that the _get_payload call removes unicode characters.
+            Add a mock so we can assert that
+            the _get_payload call removes unicode characters.
             """
 
             # call into real implementation
-            result = get_backend_provider(emphemeral=True)._get_payload(exam, context)  # pylint: disable=protected-access
+            result = get_backend_provider(
+                'SOFTWARE_SECURE', emphemeral=True
+            )._get_payload(exam, context)  # pylint: disable=protected-access
             self.assertFalse(isinstance(result['examName'], unicode))
             self.assertTrue(is_ascii(result['examName']))
             self.assertGreater(len(result['examName']), 0)
@@ -308,7 +391,12 @@ class SoftwareSecureTests(TestCase):
             )
 
             # patch the _get_payload method on the backend provider
-            with patch.object(get_backend_provider(), '_get_payload', assert_get_payload_mock_unicode_characters):  # pylint: disable=protected-access
+            patch_object = patch.object(
+                get_backend_provider("SOFTWARE_SECURE"),
+                '_get_payload',
+                assert_get_payload_mock_unicode_characters,
+            )
+            with patch_object:  # pylint: disable=protected-access
                 attempt_id = create_exam_attempt(
                     exam_id,
                     self.user.id,
@@ -326,7 +414,12 @@ class SoftwareSecureTests(TestCase):
             )
 
             # patch the _get_payload method on the backend provider
-            with patch.object(get_backend_provider(), '_get_payload', assert_get_payload_mock_unicode_characters):  # pylint: disable=protected-access
+            patch_object = patch.object(
+                get_backend_provider("SOFTWARE_SECURE"),
+                '_get_payload',
+                assert_get_payload_mock_unicode_characters,
+            )
+            with patch_object:  # pylint: disable=protected-access
                 attempt_id = create_exam_attempt(
                     exam_id,
                     self.user.id,
@@ -334,9 +427,19 @@ class SoftwareSecureTests(TestCase):
                 )
                 self.assertGreater(attempt_id, 0)
 
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_single_name_attempt(self):
         """
-        Tests to make sure we can parse a fullname which does not have any spaces in it
+        Tests to make sure we can parse a fullname
+        which does not have any spaces in it
         """
 
         set_runtime_service('credit', MockCreditService())
@@ -350,15 +453,29 @@ class SoftwareSecureTests(TestCase):
         )
 
         with HTTMock(mock_response_content):
-            attempt_id = create_exam_attempt(exam_id, self.user.id, taking_as_proctored=True)
+            attempt_id = create_exam_attempt(
+                exam_id, self.user.id, taking_as_proctored=True
+            )
             self.assertIsNotNone(attempt_id)
 
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_unicode_attempt(self):
         """
-        Tests to make sure we can handle an attempt when a user's fullname has unicode characters in it
+        Tests to make sure we can handle an attempt when a user's
+        fullname has unicode characters in it
         """
 
-        set_runtime_service('credit', MockCreditService(profile_fullname=u'अआईउऊऋऌ अआईउऊऋऌ'))
+        set_runtime_service(
+            'credit', MockCreditService(profile_fullname=u'अआईउऊऋऌ अआईउऊऋऌ')
+        )
 
         exam_id = create_exam(
             course_id='foo/bar/baz',
@@ -369,7 +486,9 @@ class SoftwareSecureTests(TestCase):
         )
 
         with HTTMock(mock_response_content):
-            attempt_id = create_exam_attempt(exam_id, self.user.id, taking_as_proctored=True)
+            attempt_id = create_exam_attempt(
+                exam_id, self.user.id, taking_as_proctored=True
+            )
             self.assertIsNotNone(attempt_id)
 
         # try unicode exam name, also
@@ -382,9 +501,20 @@ class SoftwareSecureTests(TestCase):
         )
 
         with HTTMock(mock_response_content):
-            attempt_id = create_exam_attempt(exam_id, self.user.id, taking_as_proctored=True)
+            attempt_id = create_exam_attempt(
+                exam_id, self.user.id, taking_as_proctored=True
+            )
             self.assertIsNotNone(attempt_id)
 
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_failing_register_attempt(self):
         """
         Makes sure we can register an attempt
@@ -401,14 +531,16 @@ class SoftwareSecureTests(TestCase):
         # now try a failing request
         with HTTMock(mock_response_error):
             with self.assertRaises(BackendProvideCannotRegisterAttempt):
-                create_exam_attempt(exam_id, self.user.id, taking_as_proctored=True)
+                create_exam_attempt(
+                    exam_id, self.user.id, taking_as_proctored=True
+                )
 
     def test_payload_construction(self):
         """
         Calls directly into the SoftwareSecure payload construction
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
         body = provider._body_string({  # pylint: disable=protected-access
             'foo': False,
             'none': None,
@@ -425,20 +557,20 @@ class SoftwareSecureTests(TestCase):
 
     def test_start_proctored_exam(self):
         """
-        Test that SoftwareSecure's implementation returns None, because there is no
-        work that needs to happen right now
+        Test that SoftwareSecure's implementation returns None,
+        because there is no work that needs to happen right now
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
         self.assertIsNone(provider.start_exam_attempt(None, None))
 
     def test_stop_proctored_exam(self):
         """
-        Test that SoftwareSecure's implementation returns None, because there is no
-        work that needs to happen right now
+        Test that SoftwareSecure's implementation returns None,
+        because there is no work that needs to happen right now
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
         self.assertIsNone(provider.stop_exam_attempt(None, None))
 
     @ddt.data(
@@ -449,13 +581,21 @@ class SoftwareSecureTests(TestCase):
     )
     @ddt.unpack
     @patch('edx_proctoring.constants.REQUIRE_FAILURE_SECOND_REVIEWS', False)
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_review_callback(self, review_status, credit_requirement_status):
         """
         Simulates callbacks from SoftwareSecure with various statuses
         """
 
-        provider = get_backend_provider()
-
+        provider = get_backend_provider("SOFTWARE_SECURE")
         exam_id = create_exam(
             course_id='foo/bar/baz',
             content_id='content',
@@ -484,7 +624,9 @@ class SoftwareSecureTests(TestCase):
         provider.on_review_callback(json.loads(test_payload))
 
         # make sure that what we have in the Database matches what we expect
-        review = ProctoredExamSoftwareSecureReview.get_review_by_attempt_code(attempt['attempt_code'])
+        review = ProctoredExamSoftwareSecureReview.get_review_by_attempt_code(
+            attempt['attempt_code']
+        )
 
         self.assertIsNotNone(review)
         self.assertEqual(review.review_status, review_status)
@@ -494,14 +636,18 @@ class SoftwareSecureTests(TestCase):
         self.assertIsNone(review.reviewed_by)
 
         # now check the comments that were stored
-        comments = ProctoredExamSoftwareSecureComment.objects.filter(review_id=review.id)
+        comments = ProctoredExamSoftwareSecureComment.objects.filter(
+            review_id=review.id
+        )
 
         self.assertEqual(len(comments), 6)
 
         # check that we got credit requirement set appropriately
 
         credit_service = get_runtime_service('credit')
-        credit_status = credit_service.get_credit_state(self.user.id, 'foo/bar/baz')
+        credit_status = credit_service.get_credit_state(
+            self.user.id, 'foo/bar/baz'
+        )
 
         self.assertEqual(
             credit_status['credit_requirement_status'][0]['status'],
@@ -514,7 +660,7 @@ class SoftwareSecureTests(TestCase):
         an attempt code which does not exist
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
         test_payload = Template(TEST_REVIEW_PAYLOAD).substitute(
             attempt_code='not-here',
             external_id='also-not-here'
@@ -529,7 +675,7 @@ class SoftwareSecureTests(TestCase):
         with a reviewStatus which is unexpected
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
         test_payload = Template(TEST_REVIEW_PAYLOAD).substitute(
             attempt_code='not-here',
             external_id='also-not-here'
@@ -539,6 +685,15 @@ class SoftwareSecureTests(TestCase):
         with self.assertRaises(ProctoredExamBadReviewStatus):
             provider.on_review_callback(json.loads(test_payload))
 
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_review_mistmatched_tokens(self):
         """
         Asserts raising of an exception if we get a report for
@@ -546,8 +701,7 @@ class SoftwareSecureTests(TestCase):
         match the report
         """
 
-        provider = get_backend_provider()
-
+        provider = get_backend_provider("SOFTWARE_SECURE")
         exam_id = create_exam(
             course_id='foo/bar/baz',
             content_id='content',
@@ -575,15 +729,27 @@ class SoftwareSecureTests(TestCase):
         with self.assertRaises(ProctoredExamSuspiciousLookup):
             provider.on_review_callback(json.loads(test_payload))
 
-    @patch.dict('django.conf.settings.PROCTORING_SETTINGS', {'ALLOW_CALLBACK_SIMULATION': True})
+    @patch.dict(
+        'django.conf.settings.PROCTORING_SETTINGS',
+        {'ALLOW_CALLBACK_SIMULATION': True}
+    )
     @patch('edx_proctoring.constants.REQUIRE_FAILURE_SECOND_REVIEWS', False)
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_allow_simulated_callbacks(self):
         """
         Verify that the configuration switch to
         not do confirmation of external_id/ssiRecordLocators
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
 
         exam_id = create_exam(
             course_id='foo/bar/baz',
@@ -614,16 +780,27 @@ class SoftwareSecureTests(TestCase):
         provider.on_review_callback(json.loads(test_payload))
 
         attempt = get_exam_attempt_by_id(attempt_id)
-        self.assertEqual(attempt['status'], ProctoredExamStudentAttemptStatus.verified)
+        self.assertEqual(
+            attempt['status'], ProctoredExamStudentAttemptStatus.verified
+        )
 
     @patch('edx_proctoring.constants.REQUIRE_FAILURE_SECOND_REVIEWS', False)
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_review_on_archived_attempt(self):
         """
         Make sure we can process a review report for
         an attempt which has been archived
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
 
         exam_id = create_exam(
             course_id='foo/bar/baz',
@@ -656,7 +833,9 @@ class SoftwareSecureTests(TestCase):
         provider.on_review_callback(json.loads(test_payload))
 
         # make sure that what we have in the Database matches what we expect
-        review = ProctoredExamSoftwareSecureReview.get_review_by_attempt_code(attempt['attempt_code'])
+        review = ProctoredExamSoftwareSecureReview.get_review_by_attempt_code(
+            attempt['attempt_code']
+        )
 
         self.assertIsNotNone(review)
         self.assertEqual(review.review_status, 'Clean')
@@ -665,19 +844,30 @@ class SoftwareSecureTests(TestCase):
         self.assertIsNotNone(review.raw_data)
 
         # now check the comments that were stored
-        comments = ProctoredExamSoftwareSecureComment.objects.filter(review_id=review.id)
+        comments = ProctoredExamSoftwareSecureComment.objects.filter(
+            review_id=review.id
+        )
 
         self.assertEqual(len(comments), 6)
 
     @patch('edx_proctoring.constants.ALLOW_REVIEW_UPDATES', False)
     @patch('edx_proctoring.constants.REQUIRE_FAILURE_SECOND_REVIEWS', False)
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_disallow_review_resubmission(self):
         """
-        Tests that an exception is raised if a review report is resubmitted for the same
-        attempt
+        Tests that an exception is raised
+        if a review report is resubmitted for the same attempt
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
 
         exam_id = create_exam(
             course_id='foo/bar/baz',
@@ -709,13 +899,25 @@ class SoftwareSecureTests(TestCase):
         with self.assertRaises(ProctoredExamReviewAlreadyExists):
             provider.on_review_callback(json.loads(test_payload))
 
-    @patch('edx_proctoring.constants.ALLOW_REVIEW_UPDATES', True)
+    @patch(
+        'edx_proctoring.backends.software_secure.get_proctoring_settings',
+        return_value={'ALLOW_REVIEW_UPDATES': True}
+    )
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_allow_review_resubmission(self):
         """
         Tests that an resubmission is allowed
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
 
         exam_id = create_exam(
             course_id='foo/bar/baz',
@@ -744,7 +946,9 @@ class SoftwareSecureTests(TestCase):
         provider.on_review_callback(json.loads(test_payload))
 
         # make sure history table is empty
-        records = ProctoredExamSoftwareSecureReviewHistory.objects.filter(attempt_code=attempt['attempt_code'])
+        records = ProctoredExamSoftwareSecureReviewHistory.objects.filter(
+            attempt_code=attempt['attempt_code']
+        )
         self.assertEqual(len(records), 0)
 
         # now call again, this will not throw exception
@@ -752,7 +956,9 @@ class SoftwareSecureTests(TestCase):
         provider.on_review_callback(json.loads(test_payload))
 
         # make sure that what we have in the Database matches what we expect
-        review = ProctoredExamSoftwareSecureReview.get_review_by_attempt_code(attempt['attempt_code'])
+        review = ProctoredExamSoftwareSecureReview.get_review_by_attempt_code(
+            attempt['attempt_code']
+        )
 
         self.assertIsNotNone(review)
         self.assertEqual(review.review_status, 'Suspicious')
@@ -761,7 +967,9 @@ class SoftwareSecureTests(TestCase):
         self.assertIsNotNone(review.raw_data)
 
         # make sure history table is no longer empty
-        records = ProctoredExamSoftwareSecureReviewHistory.objects.filter(attempt_code=attempt['attempt_code'])
+        records = ProctoredExamSoftwareSecureReviewHistory.objects.filter(
+            attempt_code=attempt['attempt_code']
+        )
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].review_status, 'Clean')
 
@@ -769,19 +977,34 @@ class SoftwareSecureTests(TestCase):
 
         review.delete()
 
-        records = ProctoredExamSoftwareSecureReviewHistory.objects.filter(attempt_code=attempt['attempt_code'])
+        records = ProctoredExamSoftwareSecureReviewHistory.objects.filter(
+            attempt_code=attempt['attempt_code']
+        )
         self.assertEqual(len(records), 2)
         self.assertEqual(records[0].review_status, 'Clean')
         self.assertEqual(records[1].review_status, 'Suspicious')
 
     @ddt.data(False, True)
-    def test_failure_submission(self, allow_rejects):
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.backends.software_secure.get_proctoring_settings',
+        return_value={'REQUIRE_FAILURE_SECOND_REVIEWS': True}
+    )
+    def test_failure_submission(self, allow_rejects, proctoring_settings):  # pylint: disable=unused-argument
         """
         Tests that a submission of a failed test and make sure that we
         don't automatically update the status to failure
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
 
         exam_id = create_exam(
             course_id='foo/bar/baz',
@@ -814,9 +1037,13 @@ class SoftwareSecureTests(TestCase):
         # transition to failure on the callback,
         # as we'll need a manual confirmation via Django Admin pages
         attempt = get_exam_attempt_by_id(attempt_id)
-        self.assertNotEqual(attempt['status'], ProctoredExamStudentAttemptStatus.rejected)
+        self.assertNotEqual(
+            attempt['status'], ProctoredExamStudentAttemptStatus.rejected
+        )
 
-        review = ProctoredExamSoftwareSecureReview.objects.get(attempt_code=attempt['attempt_code'])
+        review = ProctoredExamSoftwareSecureReview.objects.get(
+            attempt_code=attempt['attempt_code']
+        )
 
         # now simulate a update via Django Admin table which will actually
         # push through the failure into our attempt status (as well as trigger)
@@ -833,12 +1060,22 @@ class SoftwareSecureTests(TestCase):
         )
         self.assertEqual(attempt['status'], expected_status)
 
+    @patch('edx_proctoring.api.reverse', get_provider_name_software_secure)
+    @patch(
+        'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_software_secure
+    )
     def test_update_archived_attempt(self):
         """
-        Test calling the on_review_saved interface point with an attempt_code that was archived
+        Test calling the on_review_saved interface point with an attempt_code
+        that was archived
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
 
         exam_id = create_exam(
             course_id='foo/bar/baz',
@@ -876,7 +1113,9 @@ class SoftwareSecureTests(TestCase):
         # now delete the attempt, which puts it into the archive table
         remove_exam_attempt(attempt_id, requesting_user=self.user)
 
-        review = ProctoredExamSoftwareSecureReview.objects.get(attempt_code=attempt['attempt_code'])
+        review = ProctoredExamSoftwareSecureReview.objects.get(
+            attempt_code=attempt['attempt_code']
+        )
 
         # now simulate a update via Django Admin table which will actually
         # push through the failure into our attempt status but
@@ -893,10 +1132,11 @@ class SoftwareSecureTests(TestCase):
 
     def test_on_review_saved_bad_code(self):
         """
-        Simulate calling on_review_saved() with an attempt code that cannot be found
+        Simulate calling on_review_saved() with an attempt code
+        that cannot be found
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
 
         review = ProctoredExamSoftwareSecureReview()
         review.attempt_code = 'foo'
@@ -908,7 +1148,7 @@ class SoftwareSecureTests(TestCase):
         Make sure we are splitting up full names correctly
         """
 
-        provider = get_backend_provider()
+        provider = get_backend_provider("SOFTWARE_SECURE")
 
         (first_name, last_name) = provider._split_fullname('John Doe')
         self.assertEqual(first_name, 'John')
@@ -918,10 +1158,14 @@ class SoftwareSecureTests(TestCase):
         self.assertEqual(first_name, 'Johnny')
         self.assertEqual(last_name, '')
 
-        (first_name, last_name) = provider._split_fullname('Baron von Munchausen')
+        (first_name, last_name) = provider._split_fullname(
+            'Baron von Munchausen'
+        )
         self.assertEqual(first_name, 'Baron')
         self.assertEqual(last_name, 'von Munchausen')
 
-        (first_name, last_name) = provider._split_fullname(u'अआईउऊऋऌ अआईउऊऋऌ')
+        (first_name, last_name) = provider._split_fullname(
+            u'अआईउऊऋऌ अआईउऊऋऌ'
+        )
         self.assertEqual(first_name, u'अआईउऊऋऌ')
         self.assertEqual(last_name, u'अआईउऊऋऌ')
