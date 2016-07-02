@@ -91,14 +91,17 @@ class MockCreditService(object):
 
 class MockCreditServiceWithCourseEndDate(MockCreditService):
     """
-    mock of the Credit Service but overrides get_credit_state to return a past course_end_date
+    mock of the Credit Service but overrides get_credit_state
+    to return a past course_end_date
     """
 
     def get_credit_state(self, user_id, course_key, return_course_info=False):  # pylint: disable=unused-argument
         """
         Mock implementation
         """
-        self.status['course_end_date'] = datetime.now(pytz.UTC) + timedelta(days=-1)
+        self.status['course_end_date'] = datetime.now(pytz.UTC) + timedelta(
+            days=-1
+        )
         return self.status
 
 

@@ -1,7 +1,8 @@
 # pylint: disable=too-many-branches, too-many-lines, too-many-statements
 
 """
-In-Proc API (aka Library) for the edx_proctoring subsystem. This is not to be confused with a HTTP REST
+In-Proc API (aka Library) for the edx_proctoring subsystem.
+This is not to be confused with a HTTP REST
 API which is in the views.py file, per edX coding standards
 """
 import pytz
@@ -15,6 +16,9 @@ from django.conf import settings
 from django.template import Context, loader
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.core.mail.message import EmailMessage
+from django.contrib.auth.models import User
+
+from rest_framework.generics import get_object_or_404
 
 from edx_proctoring import constants
 from edx_proctoring.exceptions import (
@@ -114,7 +118,9 @@ def create_exam_review_policy(exam_id, set_by_user_id, review_policy):
     Returns: id (PK)
     """
 
-    exam_review_policy = ProctoredExamReviewPolicy.get_review_policy_for_exam(exam_id)
+    exam_review_policy = ProctoredExamReviewPolicy.get_review_policy_for_exam(
+        exam_id
+    )
     if exam_review_policy is not None:
         raise ProctoredExamReviewPolicyAlreadyExists
 
@@ -139,7 +145,8 @@ def create_exam_review_policy(exam_id, set_by_user_id, review_policy):
 
 def update_review_policy(exam_id, set_by_user_id, review_policy):
     """
-    Given a exam id, update/remove the existing record, otherwise raise exception if not found.
+    Given a exam id, update/remove the existing record,
+    otherwise raise exception if not found.
     Returns: review_policy_id
     """
 
@@ -147,11 +154,15 @@ def update_review_policy(exam_id, set_by_user_id, review_policy):
         u'Updating exam review policy with exam_id {exam_id}'
         u'set_by_user_id={set_by_user_id}, review_policy={review_policy}'
         .format(
-            exam_id=exam_id, set_by_user_id=set_by_user_id, review_policy=review_policy,
+            exam_id=exam_id,
+            set_by_user_id=set_by_user_id,
+            review_policy=review_policy,
         )
     )
     log.info(log_msg)
-    exam_review_policy = ProctoredExamReviewPolicy.get_review_policy_for_exam(exam_id)
+    exam_review_policy = ProctoredExamReviewPolicy.get_review_policy_for_exam(
+        exam_id
+    )
     if exam_review_policy is None:
         raise ProctoredExamReviewPolicyNotFoundException
 
@@ -159,17 +170,22 @@ def update_review_policy(exam_id, set_by_user_id, review_policy):
         exam_review_policy.set_by_user_id = set_by_user_id
         exam_review_policy.review_policy = review_policy
         exam_review_policy.save()
-        msg = 'Updated exam review policy with {exam_id}'.format(exam_id=exam_id)
+        msg = 'Updated exam review policy with {exam_id}'.format(
+            exam_id=exam_id
+        )
         log.info(msg)
     else:
         exam_review_policy.delete()
-        msg = 'removed exam review policy with {exam_id}'.format(exam_id=exam_id)
+        msg = 'removed exam review policy with {exam_id}'.format(
+            exam_id=exam_id
+        )
         log.info(msg)
 
 
 def remove_review_policy(exam_id):
     """
-    Given a exam id, remove the existing record, otherwise raise exception if not found.
+    Given a exam id, remove the existing record,
+    otherwise raise exception if not found.
     """
 
     log_msg = (
@@ -177,7 +193,9 @@ def remove_review_policy(exam_id):
         .format(exam_id=exam_id)
     )
     log.info(log_msg)
-    exam_review_policy = ProctoredExamReviewPolicy.get_review_policy_for_exam(exam_id)
+    exam_review_policy = ProctoredExamReviewPolicy.get_review_policy_for_exam(
+        exam_id
+    )
     if exam_review_policy is None:
         raise ProctoredExamReviewPolicyNotFoundException
 
@@ -548,7 +566,9 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
     attempt_code = unicode(uuid.uuid4()).upper()
 
     external_id = None
-    review_policy = ProctoredExamReviewPolicy.get_review_policy_for_exam(exam_id)
+    review_policy = ProctoredExamReviewPolicy.get_review_policy_for_exam(
+        exam_id
+    )
     review_policy_exception = ProctoredExamStudentAllowance.get_review_policy_exception(exam_id, user_id)
 
     if not is_exam_past_due_date and taking_as_proctored:
@@ -564,7 +584,9 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
 
         credit_service = get_runtime_service('credit')
         if credit_service:
-            credit_state = credit_service.get_credit_state(user_id, exam['course_id'])
+            credit_state = credit_service.get_credit_state(
+                user_id, exam['course_id']
+            )
             full_name = credit_state['profile_fullname']
 
         user = get_object_or_404(User, pk=user_id)
@@ -701,23 +723,36 @@ def _start_exam_attempt(existing_attempt):
 
 def stop_exam_attempt(exam_id, user_id):
     """
-    Marks the exam attempt as completed (sets the completed_at field and updates the record)
+    Marks the exam attempt as completed
+    (sets the completed_at field and updates the record)
     """
-    return update_attempt_status(exam_id, user_id, ProctoredExamStudentAttemptStatus.ready_to_submit)
+    return update_attempt_status(
+        exam_id,
+        user_id,
+        ProctoredExamStudentAttemptStatus.ready_to_submit
+    )
 
 
 def mark_exam_attempt_timeout(exam_id, user_id):
     """
     Marks the exam attempt as timed_out
     """
-    return update_attempt_status(exam_id, user_id, ProctoredExamStudentAttemptStatus.timed_out)
+    return update_attempt_status(
+        exam_id,
+        user_id,
+        ProctoredExamStudentAttemptStatus.timed_out
+    )
 
 
 def mark_exam_attempt_as_ready(exam_id, user_id):
     """
     Marks the exam attemp as ready to start
     """
-    return update_attempt_status(exam_id, user_id, ProctoredExamStudentAttemptStatus.ready_to_start)
+    return update_attempt_status(
+        exam_id,
+        user_id,
+        ProctoredExamStudentAttemptStatus.ready_to_start
+    )
 
 
 def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, cascade_effects=True):
@@ -949,7 +984,7 @@ def update_attempt_status(exam_id, user_id, to_status, raise_if_not_found=True, 
         credit_state = credit_service.get_credit_state(
             exam_attempt_obj.user_id,
             exam_attempt_obj.proctored_exam.course_id,
-            return_course_name=True
+            return_course_info=True
         )
 
         send_proctoring_attempt_status_email(
@@ -1034,7 +1069,8 @@ def send_proctoring_attempt_status_email(exam_attempt_obj, course_name):
 
 def remove_exam_attempt(attempt_id, requesting_user):
     """
-    Removes an exam attempt given the attempt id. requesting_user is passed through to the instructor_service.
+    Removes an exam attempt given the attempt id.
+    requesting_user is passed through to the instructor_service.
     """
 
     log_msg = (
@@ -1061,7 +1097,9 @@ def remove_exam_attempt(attempt_id, requesting_user):
     instructor_service = get_runtime_service('instructor')
 
     if instructor_service:
-        instructor_service.delete_student_attempt(username, course_id, content_id)
+        instructor_service.delete_student_attempt(
+            username, course_id, content_id, requesting_user
+        )
 
     # see if the status transition this changes credit requirement status
     if ProctoredExamStudentAttemptStatus.needs_credit_status_update(to_status):
@@ -1076,7 +1114,9 @@ def remove_exam_attempt(attempt_id, requesting_user):
 
     # emit an event for 'deleted'
     exam = get_exam_by_content_id(course_id, content_id)
-    serialized_attempt_obj = ProctoredExamStudentAttemptSerializer(existing_attempt)
+    serialized_attempt_obj = ProctoredExamStudentAttemptSerializer(
+        existing_attempt
+    )
     attempt = serialized_attempt_obj.data
     emit_event(exam, 'deleted', attempt=attempt)
 
@@ -1450,7 +1490,11 @@ def get_attempt_status_summary(user_id, course_id, content_id):
     # practice exams always has an attempt status regardless of
     # eligibility
     if credit_service and not exam['is_practice_exam']:
-        credit_state = credit_service.get_credit_state(user_id, unicode(course_id), return_course_name=True)
+        credit_state = credit_service.get_credit_state(
+            user_id,
+            unicode(course_id),
+            return_course_info=True
+        )
         if not _check_eligibility_of_enrollment_mode(credit_state):
             return None
 
@@ -1678,7 +1722,8 @@ def _get_practice_exam_view(exam, context, exam_id, user_id, course_id):
         return None
     elif attempt_status in [ProctoredExamStudentAttemptStatus.created,
                             ProctoredExamStudentAttemptStatus.download_software_clicked]:
-        provider = get_backend_provider()
+        provider_name = get_provider_name_by_course_id(exam['course_id'])
+        provider = get_backend_provider(provider_name)
         student_view_template = 'proctored_exam/instructions.html'
         context.update({
             'exam_code': attempt['attempt_code'],
@@ -1699,7 +1744,11 @@ def _get_practice_exam_view(exam, context, exam_id, user_id, course_id):
     if student_view_template:
         template = loader.get_template(student_view_template)
         django_context = Context(context)
-        django_context.update(_get_proctored_exam_context(exam, attempt, course_id, is_practice_exam=True))
+        django_context.update(
+            _get_proctored_exam_context(
+                exam, attempt, course_id, is_practice_exam=True
+            )
+        )
         return template.render(django_context)
 
 
@@ -1711,7 +1760,8 @@ def _get_proctored_exam_view(exam, context, exam_id, user_id, course_id):
 
     credit_state = context.get('credit_state')
 
-    # see if only 'verified' track students should see this *except* if it is a practice exam
+    # see if only 'verified' track students should see this *except*
+    # if it is a practice exam
     check_mode = (
         settings.PROCTORING_SETTINGS.get('MUST_BE_VERIFIED_TRACK', True) and
         credit_state

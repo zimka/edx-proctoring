@@ -2002,7 +2002,7 @@ class ProctoredExamApiTests(LoggedInTestCase):
         'edx_proctoring.api.get_provider_name_by_course_id',
         get_provider_name_test
     )
-    def test_get_studentview_created_status_practiceexam(self, status):
+    def test_get_studentview_created_status_practiceexam(self):
         """
         Test for get_student_view practice exam which has been created.
         """
@@ -2607,6 +2607,10 @@ class ProctoredExamApiTests(LoggedInTestCase):
                 to_status
             )
 
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_test
+    )
     def test_alias_timed_out(self):
         """
         Verified that timed_out will automatically state transition
@@ -2627,7 +2631,13 @@ class ProctoredExamApiTests(LoggedInTestCase):
             ProctoredExamStudentAttemptStatus.submitted
         )
 
-    def test_update_unexisting_attempt(self):
+    @patch('edx_proctoring.api.get_exam_by_id', return_value={'course_id': 1})
+    @patch(
+        'edx_proctoring.api.get_provider_name_by_course_id',
+        get_provider_name_test
+    )
+    def test_update_unexisting_attempt(self, exam):  # pylint: disable=unused-argument
+
         """
         Tests updating an non-existing attempt
         """

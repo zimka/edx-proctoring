@@ -912,7 +912,8 @@ class SoftwareSecureTests(TestCase):
         'edx_proctoring.backends.software_secure.get_provider_name_by_course_id',
         get_provider_name_software_secure
     )
-    def test_allow_review_resubmission(self):
+    def test_allow_review_resubmission(self, proctoring_settings):  # pylint: disable=unused-argument
+
         """
         Tests that an resubmission is allowed
         """
