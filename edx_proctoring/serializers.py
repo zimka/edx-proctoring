@@ -27,6 +27,10 @@ class ProctoredExamSerializer(serializers.ModelSerializer):
     due_date = serializers.DateTimeField(required=False, format=None)
     hide_after_due = serializers.BooleanField(required=True)
 
+    deadline = DateTimeField(format=None)
+    start = DateTimeField(format=None)
+    visible_to_staff_only = serializers.BooleanField(required=True)
+
     class Meta:
         """
         Meta Class
@@ -36,7 +40,8 @@ class ProctoredExamSerializer(serializers.ModelSerializer):
         fields = (
             "id", "course_id", "content_id", "external_id", "exam_name",
             "time_limit_mins", "is_proctored", "is_practice_exam", "is_active",
-            "due_date", "hide_after_due"
+            "due_date", "hide_after_due",
+            "deadline", "start", "visible_to_staff_only",
         )
 
 
@@ -47,6 +52,8 @@ class UserSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     username = serializers.CharField(required=True)
     email = serializers.CharField(required=True)
+    first_name = serializers.CharField(required=False)
+    last_name = serializers.CharField(required=False)
 
     class Meta:
         """
@@ -55,7 +62,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
 
         fields = (
-            "id", "username", "email"
+            "id", "username", "email", "first_name", "last_name"
         )
 
 
@@ -118,4 +125,62 @@ class ProctoredExamReviewPolicySerializer(serializers.ModelSerializer):
         model = ProctoredExamReviewPolicy
         fields = (
             "id", "created", "modified", "set_by_user", "proctored_exam", "review_policy"
+        )
+
+
+class ProctoredExamSerializerSimple(serializers.ModelSerializer):
+    """
+    Serializer for the ProctoredExam Model.
+    """
+    id = serializers.IntegerField(required=False)
+    course_id = serializers.CharField(required=True)
+    content_id = serializers.CharField(required=True)
+    external_id = serializers.CharField(required=True)
+    exam_name = serializers.CharField(required=True)
+    time_limit_mins = serializers.IntegerField(required=True)
+
+    is_active = serializers.BooleanField(required=True)
+    is_practice_exam = serializers.BooleanField(required=True)
+    is_proctored = serializers.BooleanField(required=True)
+    due_date = serializers.DateTimeField(required=False, format=None)
+    hide_after_due = serializers.BooleanField(required=True)
+
+    class Meta:
+        """
+        Meta Class
+        """
+        model = ProctoredExam
+
+        fields = (
+            "id", "course_id", "content_id", "external_id", "exam_name",
+            "time_limit_mins", "is_proctored", "is_practice_exam", "is_active",
+            "due_date", "hide_after_due"
+        )
+
+
+class ProctoredExamStudentAttemptSerializerSimple(serializers.ModelSerializer):
+    """
+    Serializer for the ProctoredExamStudentAttempt Model.
+    """
+    proctored_exam = ProctoredExamSerializer()
+    user = UserSerializer()
+
+    # Django Rest Framework v3 defaults to `settings.DATE_FORMAT` when serializing
+    # datetime fields.  We need to specify `format=None` to maintain the old behavior
+    # of returning raw `datetime` objects instead of unicode.
+    started_at = DateTimeField(format=None)
+    completed_at = DateTimeField(format=None)
+    last_poll_timestamp = DateTimeField(format=None)
+
+    class Meta:
+        """
+        Meta Class
+        """
+        model = ProctoredExamStudentAttempt
+
+        fields = (
+            "id", "created", "modified", "user", "started_at", "completed_at",
+            "external_id", "status", "proctored_exam", "allowed_time_limit_mins",
+            "attempt_code", "is_sample_attempt", "taking_as_proctored", "last_poll_timestamp",
+            "last_poll_ipaddr", "review_policy_id", "student_name", "is_status_acknowledged"
         )

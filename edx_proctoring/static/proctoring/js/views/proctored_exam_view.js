@@ -21,6 +21,7 @@ var edx = edx || {};
             /* give an extra 5 seconds where the timer holds at 00:00 before page refreshes */
             this.grace_period_secs = 5;
             this.first_time_rendering = true;
+            this.attention_enabled = document.getElementById('proctor_attention_enabled').getAttribute('value') === "True";
 
             // we need to keep a copy here because the model will
             // get destroyed before onbeforeunload is called
@@ -155,6 +156,32 @@ var edx = edx || {};
             }
             var oldState = self.$el.find('div.exam-timer').attr('class');
             var newState = self.model.getRemainingTimeState(self.secondsLeft);
+
+            if (self.attention_enabled) {
+                var npoedState = self.model.getRemainingTimeNpoed(self.secondsLeft);
+                if (npoedState !== null) {
+                    if (npoedState > 0) {
+                        if (self.$el.find('div.exam-timer').find('p.proctor-attention').length === 0) {
+                            if (npoedState === 1) {
+                                self.$el.find('div.exam-timer').append("<p class='proctor-attention' style='font-size:20px;background-color: red;text-align: center;color: white;'>ВНИМАНИЕ! До конца экзамена осталось менее " + npoedState + " минуты</p>");
+                            }
+                            else{
+                                self.$el.find('div.exam-timer').append("<p class='proctor-attention' style='font-size:20px;background-color: red;text-align: center;color: white;'>ВНИМАНИЕ! До конца экзамена осталось менее " + npoedState + " минут</p>");
+                            }
+                        }
+                        self.$el.find('div.exam-timer')[0].style.position = 'fixed';
+                        self.$el.find('div.exam-timer')[0].style.top = 0;
+                        self.$el.find('div.exam-timer')[0].style.zIndex = 999;
+                        self.$el.find('div.exam-timer')[0].style.width = '100%';
+                    }
+                    else if (npoedState === -1) {
+                        if (self.$el.find('div.exam-timer').find('p.proctor-attention').length > 0) {
+                            self.$el.find('div.exam-timer').find('p.proctor-attention').remove()
+                        }
+                        self.$el.find('div.exam-timer')[0].setAttribute('style', '');
+                    }
+                }
+            }
 
             if (newState !== null && !self.$el.find('div.exam-timer').hasClass(newState)) {
                 self.$el.find('div.exam-timer').removeClass("warning critical");

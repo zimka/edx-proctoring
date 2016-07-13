@@ -102,6 +102,8 @@ def get_proctor_settings_param(proctor_settings, param, default=False):
         'ALLOW_REVIEW_UPDATES': getattr(
             settings, 'ALLOW_REVIEW_UPDATES', True
         ),
+        'BCC_EMAIL': None,
+        'REPLY_TO_EMAIL': None,
     }
     if param in predefault and not default:
         default = predefault[param]

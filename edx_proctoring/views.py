@@ -49,7 +49,7 @@ from edx_proctoring import constants
 from edx_proctoring.runtime import get_runtime_service
 from edx_proctoring.serializers import (
     ProctoredExamSerializer,
-    ProctoredExamStudentAttemptSerializer
+    ProctoredExamStudentAttemptSerializerSimple
 )
 from edx_proctoring.models import (
     ProctoredExamStudentAttemptStatus,
@@ -75,7 +75,7 @@ LOG = logging.getLogger("edx_proctoring_views")
 def require_staff(func):
     """View decorator that requires that the user have staff permissions. """
     def wrapped(request, *args, **kwargs):  # pylint: disable=missing-docstring
-        if request.user.is_staff:
+        if request.user.is_staff or request.user.id in getattr(settings, 'USERS_WITH_SPECIAL_PERMS_IDS', []):
             return func(request, *args, **kwargs)
         else:
             return Response(
@@ -479,7 +479,10 @@ class StudentProctoredExamAttempt(AuthenticatedAPIView):
                 raise StudentExamAttemptDoesNotExistsException(err_msg)
 
             remove_exam_attempt(attempt_id, request.user)
-            return Response()
+            return Response(
+                status=status.HTTP_200_OK,
+                data={}
+            )
 
         except ProctoredBaseException, ex:
             LOG.exception(ex)
@@ -560,6 +563,10 @@ class StudentProctoredExamAttemptCollection(AuthenticatedAPIView):
             critically_low_threshold = int(
                 critically_low_threshold_pct * float(attempt['allowed_time_limit_mins']) * 60
             )
+            npoed_threshold_pct = proctoring_settings.get('low_threshold_pct', .15)
+            npoed_low_threshold = int(npoed_threshold_pct * float(attempt['allowed_time_limit_mins']) * 60)
+            npoed_low_time = (npoed_low_threshold // 300) * 5 + 5
+            critically_low_time = (critically_low_threshold // 60) + 1
 
             exam_url_path = ''
             try:
@@ -584,6 +591,9 @@ class StudentProctoredExamAttemptCollection(AuthenticatedAPIView):
                 'time_remaining_seconds': time_remaining_seconds,
                 'low_threshold_sec': low_threshold,
                 'critically_low_threshold_sec': critically_low_threshold,
+                'critically_low_time': critically_low_time,
+                'npoed_low_threshold_sec': npoed_low_threshold,
+                'npoed_low_time': npoed_low_time,
                 'course_id': exam['course_id'],
                 'attempt_id': attempt['id'],
                 'accessibility_time_string': _('you have {remaining_time} remaining').format(
@@ -685,7 +695,7 @@ class StudentProctoredExamAttemptsByCourse(AuthenticatedAPIView):
 
         data = {
             'proctored_exam_attempts': [
-                ProctoredExamStudentAttemptSerializer(attempt).data for
+                ProctoredExamStudentAttemptSerializerSimple(attempt).data for
                 attempt in exam_attempts_page.object_list
             ],
             'pagination_info': {

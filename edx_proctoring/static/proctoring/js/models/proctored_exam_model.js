@@ -13,6 +13,9 @@
             time_remaining_seconds: 0,
             low_threshold_sec: 0,
             critically_low_threshold_sec: 0,
+            critically_low_time: 0,
+            npoed_low_threshold_sec: 0,
+            npoed_low_time: 0,
             course_id: null,
             accessibility_time_string: '',
             lastFetched: new Date()
@@ -29,6 +32,20 @@
             return hours + ":" + (minutes < 10 ? "0" + minutes : minutes)
                 + ":" + (seconds < 10 ? "0" + seconds : seconds);
 
+        },
+        getRemainingTimeNpoed: function (secondsLeft) {
+            if (secondsLeft > this.get('npoed_low_threshold_sec')) {
+                return null;
+            }
+            else if (secondsLeft <= this.get('npoed_low_threshold_sec') && secondsLeft > this.get('npoed_low_threshold_sec') - 15){
+                return this.get('npoed_low_time');
+            }
+            else if (secondsLeft <= this.get('critically_low_threshold_sec') && secondsLeft > this.get('critically_low_threshold_sec') - 15){
+                return this.get('critically_low_time');
+            }
+            else {
+                return -1;
+            }
         },
         getRemainingTimeState: function (secondsLeft) {
             if (secondsLeft > this.get('low_threshold_sec')) {
