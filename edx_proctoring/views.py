@@ -669,7 +669,7 @@ class StudentProctoredExamAttemptsByCourse(AuthenticatedAPIView):
         HTTP GET Handler. Returns the status of the exam attempt.
         """
         # course staff only views attempts of timed exams. edx staff can view both timed and proctored attempts.
-        time_exams_only = not request.user.is_staff
+        time_exams_only = not (request.user.is_staff or request.user.id in getattr(settings, 'USERS_WITH_SPECIAL_PERMS_IDS', []))
 
         if search_by is not None:
             exam_attempts = ProctoredExamStudentAttempt.objects.get_filtered_exam_attempts(
