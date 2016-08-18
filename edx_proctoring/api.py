@@ -577,8 +577,7 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
             scheme=scheme,
             hostname=settings.SITE_NAME,
             path=reverse(
-                'edx_proctoring.anonymous.proctoring_launch_callback.start_exam',
-                args=[attempt_code]
+                'jump_to', kwargs={'course_id': exam['course_id'], 'location': exam['content_id']}
             )
         )
 
