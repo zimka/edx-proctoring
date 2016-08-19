@@ -49,7 +49,7 @@ from edx_proctoring import constants
 from edx_proctoring.runtime import get_runtime_service
 from edx_proctoring.serializers import (
     ProctoredExamSerializer,
-    ProctoredExamStudentAttemptSerializerSimple
+    ProctoredExamStudentAttemptSerializer
 )
 from edx_proctoring.models import (
     ProctoredExamStudentAttemptStatus,
@@ -92,7 +92,7 @@ def require_course_or_global_staff(func):
         course_id = kwargs['course_id'] if 'course_id' in kwargs else None
         exam_id = request.data.get('exam_id', None)
         attempt_id = kwargs['attempt_id'] if 'attempt_id' in kwargs else None
-        if request.user.is_staff:
+        if request.user.is_staff or request.user.id in getattr(settings, 'USERS_WITH_SPECIAL_PERMS_IDS', []):
             return func(request, *args, **kwargs)
         else:
             if course_id is None:
@@ -669,7 +669,7 @@ class StudentProctoredExamAttemptsByCourse(AuthenticatedAPIView):
         HTTP GET Handler. Returns the status of the exam attempt.
         """
         # course staff only views attempts of timed exams. edx staff can view both timed and proctored attempts.
-        time_exams_only = not request.user.is_staff
+        time_exams_only = not (request.user.is_staff or request.user.id in getattr(settings, 'USERS_WITH_SPECIAL_PERMS_IDS', []))
 
         if search_by is not None:
             exam_attempts = ProctoredExamStudentAttempt.objects.get_filtered_exam_attempts(
@@ -695,7 +695,7 @@ class StudentProctoredExamAttemptsByCourse(AuthenticatedAPIView):
 
         data = {
             'proctored_exam_attempts': [
-                ProctoredExamStudentAttemptSerializerSimple(attempt).data for
+                ProctoredExamStudentAttemptSerializer(attempt).data for
                 attempt in exam_attempts_page.object_list
             ],
             'pagination_info': {
