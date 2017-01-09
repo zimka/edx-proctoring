@@ -60,8 +60,14 @@ var edx = edx || {};
                     data: {
                         'proctoring_service': proctor,
                     },
-                    success: function () {
-                        alert("Proctoring service has successfully changed.");
+                    success: function (data, status) {
+                        if (! status.length) {
+                            alert("Proctoring service was successfully changed.");
+                        }
+                        else{
+                            var mes = "Error: "+  JSON.parse(status[0])['error'];
+                            alert(mes);
+                        }
                         self.hydrate();
                     }
                 }

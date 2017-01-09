@@ -5,6 +5,7 @@ Proctored Exams HTTP-based API endpoints
 import logging
 import pytz
 from datetime import datetime
+import requests
 
 from django.utils.translation import ugettext as _
 from django.utils.decorators import method_decorator
@@ -669,7 +670,9 @@ class StudentProctoredExamAttemptsByCourse(AuthenticatedAPIView):
         HTTP GET Handler. Returns the status of the exam attempt.
         """
         # course staff only views attempts of timed exams. edx staff can view both timed and proctored attempts.
-        time_exams_only = not (request.user.is_staff or request.user.id in getattr(settings, 'USERS_WITH_SPECIAL_PERMS_IDS', []))
+        time_exams_only = not (
+            request.user.is_staff or request.user.id in getattr(settings, 'USERS_WITH_SPECIAL_PERMS_IDS', [])
+        )
 
         if search_by is not None:
             exam_attempts = ProctoredExamStudentAttempt.objects.get_filtered_exam_attempts(
@@ -873,7 +876,8 @@ class ProctoringServices(AuthenticatedAPIView):
         ```
         """
         course_key = CourseKey.from_string(course_id)
-        course = modulestore().get_course(course_key)
+        store = modulestore()
+        course = store.get_course(course_key)
         if course is None:
             return Response(
                 "Course with this course id doesn't exist",
@@ -894,24 +898,30 @@ class ProctoringServices(AuthenticatedAPIView):
         """
         HTTP PUT handler. To update an course.
         """
-
-        course_key = CourseKey.from_string(course_id)
+        course_key = CourseKey.from_string(course_id)   
         course = modulestore().get_course(course_key)
         if course is None:
             return Response(
-                "Course with this course id doesn't exist",
+                {"error": "Course with this course id doesn't exist"},
                 status=404
             )
         available_providers = course.available_proctoring_services.split(',')
         proctoring_service = request.data.get("proctoring_service")
         if proctoring_service not in available_providers:
             return Response(
-                {"error", "This proctoring service is not available"},
+                {"error": "This proctoring service is not available"},
                 status=403
             )
-        course.proctoring_service = proctoring_service
-        modulestore().update_item(course, request.user.id)
-        return Response({"status": "OK"})
+        base_url = settings.CMS_PROCTORING_API_URL
+        token = settings.CMS_PROCTORING_API_KEY
+        url = base_url.format(course_id=str(course.id))
+        data = {
+            "service": str(proctoring_service),
+            "user": str(request.user.id),
+            "token": token
+        }
+        logging.info("Proctoring api request: url '{}', data '{}'".format(url, str(data)))
+        return Response(requests.put(url, data=data))
 
 
 class StudentProctoredExamAttemptByCode(APIView):
