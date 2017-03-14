@@ -64,7 +64,7 @@ from edx_proctoring.utils import (
     modulestore
 )
 
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 
 
 ATTEMPTS_PER_PAGE = 25
@@ -707,6 +707,18 @@ class StudentProctoredExamAttemptsByCourse(AuthenticatedAPIView):
             'attempt_url': attempt_url
 
         }
+        exam_urls = []
+        store = modulestore()
+        viewname = 'courseware_section'
+        for attempt in exam_attempts_page.object_list:
+            key = UsageKey.from_string(attempt.proctored_exam.content_id)
+            item = store.get_item(key)
+            section = item.location.block_id
+            chapter = item.get_parent().location.block_id
+            course_id = str(item.location.course_key)
+            _kwargs = dict(course_id=course_id, chapter=chapter, section=section)
+            exam_urls.append(reverse(viewname,kwargs=_kwargs))
+        data['exam_urls'] = exam_urls
         return Response(
             data=data,
             status=status.HTTP_200_OK

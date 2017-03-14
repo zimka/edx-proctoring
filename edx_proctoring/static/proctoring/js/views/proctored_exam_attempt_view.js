@@ -173,7 +173,8 @@ var edx = edx || {};
                     inSearchMode: this.inSearchMode,
                     searchText: this.searchText,
                     start_page: start_page,
-                    end_page: end_page
+                    end_page: end_page,
+                    exam_urls: data_json.exam_urls,
                 };
                 _.extend(data, viewHelper);
                 var html = this.template(data);
