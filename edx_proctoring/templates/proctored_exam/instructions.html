@@ -2,6 +2,9 @@
 <div class="sequence proctored-exam instructions message-left-bar" data-exam-id="{{exam_id}}" data-exam-started-poll-url="{{exam_started_poll_url}}">
 
   <div class="">
+    {% if provider_name == "WEB_ASSISTANT" %}
+      {% blocktrans %}WEB_ASSISTANT instructions text{% endblocktrans %}
+    {% else %}
     <h3>
     {% blocktrans %}
       Follow these steps to set up and start your proctored exam.
@@ -42,8 +45,11 @@
         You will be asked to verify your identity before you begin the exam. Make sure you have valid photo identification, such as a driver's license or passport, before you continue.
       {% endblocktrans %}
     </p>
+    {% endif %}
   </div>
 </div>
+{% if provider_name == "WEB_ASSISTANT" %}
+{% else %}
 <div class="footer-sequence border-b-0 padding-b-0">
   {% if not is_sample_attempt %}
   <p class="proctored-exam-instruction">
@@ -53,6 +59,7 @@
   </p>
   {% endif %}
 </div>
+{% endif %}
 {% include 'proctored_exam/footer.html' %}
 
 <script type="text/javascript">

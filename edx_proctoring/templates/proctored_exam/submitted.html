@@ -5,6 +5,8 @@
       You have submitted this proctored exam for review
     {% endblocktrans %}
   </h3>
+  {% if provider_name == "WEB_ASSISTANT" %}
+  {% else %}
   <p>
     {% blocktrans %}
       &#8226; After you quit the proctoring session, the recorded data is uploaded for review. </br>
@@ -25,5 +27,6 @@
       View your credit eligibility status on your <a href="{{progress_page_url}}">Progress</a> page.
     {% endblocktrans %}
   </p>
+  {% endif %}
 </div>
 {% include 'proctored_exam/footer.html' %}

@@ -1689,6 +1689,7 @@ def _get_proctored_exam_context(exam, attempt, course_id, is_practice_exam=False
     proctoring_settings = get_proctoring_settings(provider_name)
     return {
         'platform_name': settings.PLATFORM_NAME,
+        'provider_name': provider_name,
         'total_time': total_time,
         'exam_id': exam['id'],
         'progress_page_url': progress_page_url,
@@ -1904,6 +1905,7 @@ def _get_proctored_exam_view(exam, context, exam_id, user_id, course_id):
         template = loader.get_template(student_view_template)
         django_context = Context(context)
         django_context.update(_get_proctored_exam_context(exam, attempt, course_id))
+        log.warning(django_context)
         return template.render(django_context)
 
 

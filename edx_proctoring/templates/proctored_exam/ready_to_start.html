@@ -1,6 +1,9 @@
 {% load i18n %}
 <div class="sequence proctored-exam success-left-bar instructions" data-exam-id="{{exam_id}}" data-exam-started-poll-url="{{exam_started_poll_url}}">
   <div>
+    {% if provider_name == "WEB_ASSISTANT" %}
+    {% blocktrans %}WEB_ASSISTANT ready to start{% endblocktrans %}
+    {% else %}
     <h3>
     {% blocktrans %}
       Follow these instructions
@@ -14,6 +17,7 @@
         to that point are submitted for grading and your proctoring session is uploaded for review. </br>
       {% endblocktrans %}
     </p>
+    {% endif %}
     <div>
       <button type="button" class="exam-action-button proctored-enter-exam btn btn-pl-primary btn-base" data-action="start" data-exam-id="{{exam_id}}" data-change-state-url="{{change_state_url}}">
         {% blocktrans %}

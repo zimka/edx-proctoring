@@ -1206,3 +1206,6 @@ msgstr "тренировочный"
 #: edx_proctoring/views.py:580
 msgid "proctored"
 msgstr "с прокторингом"
+
+msgid "WEB_ASSISTANT entrance text"
+msgstr "Сейчас начнется сеанс тестирования,<br>Для начала нажмите:<br>Продолжить - перейти к контрольному заданию."

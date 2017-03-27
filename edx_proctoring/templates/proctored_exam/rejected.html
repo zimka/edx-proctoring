@@ -1,5 +1,13 @@
 {% load i18n %}
 <div class="failure sequence proctored-exam" data-exam-id="{{exam_id}}">
+  {% if provider_name == "WEB_ASSISTANT" %}
+  <h3>
+    {% blocktrans %}WEB_ASSISTANT failed{% endblocktrans %}
+  </h3>  
+    <p>
+    {% blocktrans %}WEB_ASSISTANT failed desc{% endblocktrans %}
+  </p>
+  {% else %}
   <h3>
     {% blocktrans %}
       Your proctoring session was reviewed and did not pass requirements
@@ -26,5 +34,6 @@
     {% endblocktrans %}
   </p>
   <div class="clearfix"></div>
+{% endif %}
 </div>
 {% include 'proctored_exam/footer.html' %}

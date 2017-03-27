@@ -13,13 +13,19 @@
   <button class="gated-sequence start-timed-exam" data-ajax-url="{{enter_exam_endpoint}}" data-exam-id="{{exam_id}}" data-attempt-proctored=true data-start-immediately=false>
     {% trans "Continue to my proctored exam. I want to be eligible for credit." %}
     <p>
+      {% if provider_name == "WEB_ASSISTANT" %}
+      {% blocktrans %}WEB_ASSISTANT entrance text{% endblocktrans %}
+      {% else %}
       {% blocktrans %}
         You will be guided through steps to set up online proctoring software and to perform various checks.</br>
       {% endblocktrans %}
+      {% endif %}
     </p>
 
     <i class="fa fa-arrow-circle-right"></i>
   </button>
+  {% if provider_name == "WEB_ASSISTANT" %}
+  {% else %}
   <button class="gated-sequence start-timed-exam" data-attempt-proctored=false>
     {% trans "Take this exam without proctoring." %}
       <i class="fa fa-arrow-circle-right"></i>
@@ -29,6 +35,7 @@
       {% endblocktrans %}
     </p>
   </button>
+  {% endif %}
 </div>
 {% include 'proctored_exam/confirm-decline.html' %}
 {% include 'proctored_exam/footer.html' %}
