@@ -681,7 +681,50 @@ class ProctoredExamStudentAllowanceManager(models.Manager):
         return QuerySetWithUpdateOverride(self.model, using=self._db)
 
 
-class ProctoredExamStudentAllowance(TimeStampedModel):
+class OngoingExamAllowanceMixin(TimeStampedModel):
+    """
+    This class watches ongoing exam attempts and changes their time limits on the fly.
+    Should be inherited by ProctoredExamStudentAllowance instead of TimeStampedModel
+    """
+    class Meta:
+        abstract = True
+
+    def _sync_ongoing_exam(self, additional_time):
+        """
+        For time allowances looks for ongoing exams and syncs them with current allowance
+        """
+        if self.key != self.ADDITIONAL_TIME_GRANTED[0]: #ReviewPolicyAllowance shouldn't be affected
+            return
+        additional_time = int(additional_time)
+
+        user_id = self.user.id
+        exam_id = self.proctored_exam.id
+        attempt = ProctoredExamStudentAttempt.objects.get_exam_attempt(exam_id, user_id)
+        if not attempt:
+            return
+        status = attempt.status
+        ongoing = not ProctoredExamStudentAttemptStatus.is_completed_status(status)
+        if ongoing:
+            time = self.proctored_exam.time_limit_mins + additional_time
+            attempt.allowed_time_limit_mins = time
+            attempt.save()
+
+    def delete(self, *args, **kwargs):
+        try:
+            self._sync_ongoing_exam(0)  #set default exam time before deletion
+        except Exception: # must continue anyway
+            pass
+        super(TimeStampedModel, self).delete(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        try:
+            self._sync_ongoing_exam(self.value)
+        except Exception: # must continue anyway
+            pass
+        super(TimeStampedModel, self).save(*args, **kwargs)
+
+
+class ProctoredExamStudentAllowance(OngoingExamAllowanceMixin):
     """
     Information about allowing a student additional time on exam.
     """
