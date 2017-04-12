@@ -3,6 +3,7 @@
 Data models for the proctoring subsystem
 """
 import hashlib
+import logging
 
 from django.db import models
 from django.db.models import Q
@@ -712,15 +713,22 @@ class OngoingExamAllowanceMixin(TimeStampedModel):
     def delete(self, *args, **kwargs):
         try:
             self._sync_ongoing_exam(0)  #set default exam time before deletion
-        except Exception: # must continue anyway
-            pass
+        except Exception as e: # must continue anyway
+            allowance_str = "user_id:{}, exam_id:{}".format(str(self.user.id), str(self.proctored_exam.id))
+            message = u"Deletion allowance: ongoing exam sync failed. Allowance:{}; Exception:{}".format(allowance_str, unicode(e))
+            logging.error(message)
+
         super(TimeStampedModel, self).delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         try:
             self._sync_ongoing_exam(self.value)
-        except Exception: # must continue anyway
-            pass
+        except Exception as e:  # must continue anyway
+            allowance_str = "user_id:{}, exam_id:{}".format(str(self.user.id), str(self.proctored_exam.id))
+            message = u"Saving allowance: ongoing exam sync failed. Allowance:{}; Exception:{}".format(allowance_str,
+                                                                                                         unicode(e))
+            logging.error(message)
+
         super(TimeStampedModel, self).save(*args, **kwargs)
 
 

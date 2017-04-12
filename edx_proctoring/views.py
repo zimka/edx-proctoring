@@ -773,6 +773,12 @@ class ExamAllowanceView(AuthenticatedAPIView):
         HTTP GET handler. Adds or updates Allowance
         """
         try:
+            allowance_str = u"Exam id:{}, user_info:{}, key:{}".format(
+                request.data.get('exam_id', None),
+                request.data.get('user_info', None),
+                request.data.get('key', None)
+            )
+            logging.info(u"Instructor '{}' tries to create allowance:'{}'".format(request.user.username, allowance_str))
             return Response(add_allowance_for_user(
                 exam_id=request.data.get('exam_id', None),
                 user_info=request.data.get('user_info', None),
@@ -792,6 +798,13 @@ class ExamAllowanceView(AuthenticatedAPIView):
         """
         HTTP DELETE handler. Removes Allowance.
         """
+        allowance_str = u"Exam id:{}, user_info:{}, key:{}".format(
+            request.data.get('exam_id', None),
+            request.data.get('user_info', None),
+            request.data.get('key', None)
+        )
+        logging.info(u"Instructor '{}' tries to delete allowance:'{}'".format(request.user.username, allowance_str))
+
         return Response(remove_allowance_for_user(
             exam_id=request.data.get('exam_id', None),
             user_id=request.data.get('user_id', None),
