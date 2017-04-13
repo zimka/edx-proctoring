@@ -94,7 +94,7 @@
                 </thead>
                 <% if (is_proctored_attempts) { %>
                 <tbody>
-                    <% _.each(proctored_exam_attempts, function(proctored_exam_attempt){ %>
+                    <% _.each(proctored_exam_attempts, function(proctored_exam_attempt, index){ %>
                         <tr class="allowance-items">
                             <td>
                                 <%- interpolate(gettext(' %(username)s '), { username: proctored_exam_attempt.user.username }, true) %>
@@ -109,7 +109,11 @@
                                 <%- interpolate(gettext(' %(last_name)s '), { last_name: proctored_exam_attempt.user.last_name }, true) %>
                             </td>
                             <td>
+                                <a href =
+                                "<%- interpolate(gettext(' %(url)s '), { url: exam_urls[index]}, true) %>"
+                                >
                                 <%- interpolate(gettext(' %(exam_display_name)s '), { exam_display_name: proctored_exam_attempt.proctored_exam.exam_name }, true) %>
+                                </a>
                             </td>
                             <td> <%= proctored_exam_attempt.allowed_time_limit_mins %></td>
                             <td> <%= proctored_exam_attempt.exam_attempt_type %></td>
