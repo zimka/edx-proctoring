@@ -18,6 +18,7 @@ from django.core.urlresolvers import reverse, NoReverseMatch
 from django.core.mail.message import EmailMessage
 from django.contrib.auth.models import User
 
+from opaque_keys.edx.keys import UsageKey
 from rest_framework.generics import get_object_or_404
 
 from edx_proctoring import constants
@@ -59,6 +60,8 @@ from edx_proctoring.backends import (
 )
 from edx_proctoring.runtime import get_runtime_service
 
+from courseware.models import StudentFieldOverride
+from dateutil.parser import parse
 log = logging.getLogger(__name__)
 
 SHOW_EXPIRY_MESSAGE_DURATION = 1 * 60  # duration within which expiry message is shown for a timed-out exam
@@ -499,6 +502,24 @@ def has_due_date_passed(due_datetime):
     return False
 
 
+def get_extended_due(serialized_exam, user_id):
+    """
+    Gets the due date for the given user on the given exam. Checks override.
+    Exam is expected to be serialized, because it's used in api in this way mostly.
+    """
+    try:
+        location = UsageKey.from_string(serialized_exam['content_id'])
+        override = StudentFieldOverride.objects.get(
+            student__id=user_id,
+            location=location,
+            field='due'
+        )
+        date = parse(override.value.strip('"'))
+        return date
+    except StudentFieldOverride.DoesNotExist:
+        return serialized_exam['due_date']
+
+
 def _was_review_status_acknowledged(is_status_acknowledged, due_datetime):
     """
     return True if review status has been acknowledged and due date has been passed
@@ -559,7 +580,7 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
         allowed_time_limit_mins += allowance_extra_mins
 
     allowed_time_limit_mins, is_exam_past_due_date = _calculate_allowed_mins(
-        exam['due_date'],
+        get_extended_due(exam, user_id),
         allowed_time_limit_mins
     )
 
@@ -1556,9 +1577,9 @@ def _get_timed_exam_view(exam, context, exam_id, user_id, course_id):
     has_time_expired = False
 
     attempt_status = attempt['status'] if attempt else None
-    has_due_date = True if exam['due_date'] is not None else False
+    has_due_date = True if get_extended_due(exam, user_id) is not None else False
     if not attempt_status:
-        if has_due_date_passed(exam['due_date']):
+        if has_due_date_passed(get_extended_due(exam,user_id)):
             student_view_template = 'timed_exam/expired.html'
         else:
             student_view_template = 'timed_exam/entrance.html'
@@ -1571,7 +1592,7 @@ def _get_timed_exam_view(exam, context, exam_id, user_id, course_id):
         # If we are not hiding the exam after the due_date has passed,
         # check if the exam's due_date has passed. If so, return None
         # so that the user can see his exam answers in read only mode.
-        if not exam['hide_after_due'] and has_due_date_passed(exam['due_date']):
+        if not exam['hide_after_due'] and has_due_date_passed(get_extended_due(exam, user_id)):
             return None
 
         student_view_template = 'timed_exam/submitted.html'
@@ -1606,7 +1627,7 @@ def _get_timed_exam_view(exam, context, exam_id, user_id, course_id):
 
             # apply any cut off times according to due dates
             allowed_time_limit_mins, _ = _calculate_allowed_mins(
-                exam['due_date'],
+                get_extended_due(exam, user_id),
                 allowed_time_limit_mins
             )
 
@@ -1666,7 +1687,7 @@ def _calculate_allowed_mins(due_datetime, allowed_mins):
     return actual_allowed_mins, is_exam_past_due_date
 
 
-def _get_proctored_exam_context(exam, attempt, course_id, is_practice_exam=False):
+def _get_proctored_exam_context(user_id, exam, attempt, course_id, is_practice_exam=False):
     """
     Common context variables for the Proctored and Practice exams' templates.
     """
@@ -1695,7 +1716,7 @@ def _get_proctored_exam_context(exam, attempt, course_id, is_practice_exam=False
         'progress_page_url': progress_page_url,
         'is_sample_attempt': is_practice_exam,
         'has_due_date': has_due_date,
-        'has_due_date_passed': has_due_date_passed(exam['due_date']),
+        'has_due_date_passed': has_due_date_passed(get_extended_due(exam, user_id)),
         'does_time_remain': _does_time_remain(attempt),
         'enter_exam_endpoint': reverse(
             'edx_proctoring.proctored_exam.attempt.collection'
@@ -1757,7 +1778,7 @@ def _get_practice_exam_view(exam, context, exam_id, user_id, course_id):
         django_context = Context(context)
         django_context.update(
             _get_proctored_exam_context(
-                exam, attempt, course_id, is_practice_exam=True
+                user_id, exam, attempt, course_id, is_practice_exam=True
             )
         )
         return template.render(django_context)
@@ -1823,7 +1844,7 @@ def _get_proctored_exam_view(exam, context, exam_id, user_id, course_id):
         })
 
         # if exam due date has passed, then we can't take the exam
-        if has_due_date_passed(exam['due_date']):
+        if has_due_date_passed(get_extended_due(exam, user_id)):
             student_view_template = 'proctored_exam/expired.html'
         elif not prerequisite_status['are_prerequisites_satisifed']:
             # do we have any declined prerequisites, if so, then we
@@ -1877,7 +1898,7 @@ def _get_proctored_exam_view(exam, context, exam_id, user_id, course_id):
         if has_client_app_shutdown(attempt):
             student_view_template = None if _was_review_status_acknowledged(
                 attempt['is_status_acknowledged'],
-                exam['due_date']
+                get_extended_due(exam, user_id),
             ) else 'proctored_exam/submitted.html'
         else:
             student_view_template = 'proctored_exam/waiting_for_app_shutdown.html'
@@ -1886,17 +1907,17 @@ def _get_proctored_exam_view(exam, context, exam_id, user_id, course_id):
         # rendering even if the review needs a 2nd review
         student_view_template = None if _was_review_status_acknowledged(
             attempt['is_status_acknowledged'],
-            exam['due_date']
+            get_extended_due(exam, user_id),
         ) else 'proctored_exam/submitted.html'
     elif attempt_status == ProctoredExamStudentAttemptStatus.verified:
         student_view_template = None if _was_review_status_acknowledged(
             attempt['is_status_acknowledged'],
-            exam['due_date']
+            get_extended_due(exam, user_id),
         ) else 'proctored_exam/verified.html'
     elif attempt_status == ProctoredExamStudentAttemptStatus.rejected:
         student_view_template = None if _was_review_status_acknowledged(
             attempt['is_status_acknowledged'],
-            exam['due_date']
+            get_extended_due(exam, user_id),
         ) else 'proctored_exam/rejected.html'
     elif attempt_status == ProctoredExamStudentAttemptStatus.ready_to_submit:
         student_view_template = 'proctored_exam/ready_to_submit.html'
@@ -1904,7 +1925,7 @@ def _get_proctored_exam_view(exam, context, exam_id, user_id, course_id):
     if student_view_template:
         template = loader.get_template(student_view_template)
         django_context = Context(context)
-        django_context.update(_get_proctored_exam_context(exam, attempt, course_id))
+        django_context.update(_get_proctored_exam_context(user_id, exam, attempt, course_id))
         log.warning(django_context)
         return template.render(django_context)
 
