@@ -52,6 +52,8 @@ class UserSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)  # pylint: disable=invalid-name
     username = serializers.CharField(required=True)
     email = serializers.CharField(required=True)
+    first_name = serializers.CharField(required=False)
+    last_name = serializers.CharField(required=False)
 
     class Meta:
         """
@@ -60,7 +62,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
 
         fields = (
-            "id", "username", "email"
+            "id", "username", "email", "first_name", "last_name"
         )
 
 
@@ -88,6 +90,7 @@ class ProctoredExamStudentAttemptSerializer(serializers.ModelSerializer):
             "id", "created", "modified", "user", "started_at", "completed_at",
             "external_id", "status", "proctored_exam", "allowed_time_limit_mins",
             "attempt_code", "is_sample_attempt", "taking_as_proctored", "last_poll_timestamp",
+            "provider_name",
             "last_poll_ipaddr", "review_policy_id", "student_name", "is_status_acknowledged"
         )
 

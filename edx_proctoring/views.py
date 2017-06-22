@@ -566,6 +566,7 @@ class StudentProctoredExamAttemptCollection(AuthenticatedAPIView):
         start_immediately = request.data.get('start_clock', 'false').lower() == 'true'
         exam_id = request.data.get('exam_id', None)
         attempt_proctored = request.data.get('attempt_proctored', 'false').lower() == 'true'
+        provider_name = request.data.get('provider_name', 'dummy')
         try:
             exam = get_exam_by_id(exam_id)
 
@@ -579,7 +580,8 @@ class StudentProctoredExamAttemptCollection(AuthenticatedAPIView):
             exam_attempt_id = create_exam_attempt(
                 exam_id=exam_id,
                 user_id=request.user.id,
-                taking_as_proctored=attempt_proctored
+                taking_as_proctored=attempt_proctored,
+                provider_name=provider_name
             )
 
             # if use elected not to take as proctored exam, then
