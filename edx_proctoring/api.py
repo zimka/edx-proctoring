@@ -49,7 +49,7 @@ from edx_proctoring.utils import (
     emit_event
 )
 
-from edx_proctoring.backends import get_backend_provider
+from edx_proctoring.backends import get_backend_provider, get_proctoring_settings, get_proctoring_settings_param
 from edx_proctoring.runtime import get_runtime_service
 
 log = logging.getLogger(__name__)
@@ -492,7 +492,7 @@ def _create_and_decline_attempt(exam_id, user_id):
     it will auto-decline further exams too
     """
 
-    create_exam_attempt(exam_id, user_id)
+    create_exam_attempt(exam_id, user_id, provider_name='dummy')
     update_attempt_status(
         exam_id,
         user_id,
@@ -501,7 +501,7 @@ def _create_and_decline_attempt(exam_id, user_id):
     )
 
 
-def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
+def create_exam_attempt(exam_id, user_id, taking_as_proctored=False, provider_name=''):
     """
     Creates an exam attempt for user_id against exam_id. There should only be
     one exam_attempt per user per exam. Multiple attempts by user will be archived
@@ -555,8 +555,7 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
             scheme=scheme,
             hostname=settings.SITE_NAME,
             path=reverse(
-                'edx_proctoring.anonymous.proctoring_launch_callback.start_exam',
-                args=[attempt_code]
+                'jump_to', kwargs={'course_id': exam['course_id'], 'location': exam['content_id']}
             )
         )
 
@@ -570,12 +569,23 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
             full_name = credit_state['profile_fullname']
             email = credit_state['student_email']
 
+        # get user info for openedu
+        username = None
+        openedu_user = User.objects.filter(pk=user_id).first()
+        if openedu_user:
+            email = openedu_user.email
+            full_name = openedu_user.get_full_name()
+            username = openedu_user.username
+
         context = {
             'time_limit_mins': allowed_time_limit_mins,
             'attempt_code': attempt_code,
             'is_sample_attempt': exam['is_practice_exam'],
             'callback_url': callback_url,
             'full_name': full_name,
+            'user_id': user_id,
+            'credit_state': credit_state,
+            'username': username,
             'email': email
         }
 
@@ -595,7 +605,7 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
             })
 
         # now call into the backend provider to register exam attempt
-        external_id = get_backend_provider().register_exam_attempt(
+        external_id = get_backend_provider(provider_name).register_exam_attempt(
             exam,
             context=context,
         )
@@ -609,6 +619,7 @@ def create_exam_attempt(exam_id, user_id, taking_as_proctored=False):
         taking_as_proctored,
         exam['is_practice_exam'],
         external_id,
+        provider_name,
         review_policy_id=review_policy.id if review_policy else None,
     )
 
@@ -731,23 +742,23 @@ def update_attempt_status(exam_id, user_id, to_status,
     )
     log.info(log_msg)
 
-    # In some configuration we may treat timeouts the same
-    # as the user saying he/she wises to submit the exam
-    treat_timeout_as_submitted = (
-        to_status == ProctoredExamStudentAttemptStatus.timed_out and
-        not settings.PROCTORING_SETTINGS.get('ALLOW_TIMED_OUT_STATE', False)
-    )
-    if treat_timeout_as_submitted:
-        to_status = ProctoredExamStudentAttemptStatus.submitted
-
+    exam = get_exam_by_id(exam_id)
     exam_attempt_obj = ProctoredExamStudentAttempt.objects.get_exam_attempt(exam_id, user_id)
     if exam_attempt_obj is None:
         if raise_if_not_found:
             raise StudentExamAttemptDoesNotExistsException('Error. Trying to look up an exam that does not exist.')
         else:
             return
+    proctoring_settings = get_proctoring_settings(exam_attempt_obj['provider_name'])
 
-    exam = get_exam_by_id(exam_id)
+    # In some configuration we may treat timeouts the same
+    # as the user saying he/she wises to submit the exam
+    treat_timeout_as_submitted = (
+        to_status == ProctoredExamStudentAttemptStatus.timed_out and
+        not proctoring_settings.get('ALLOW_TIMED_OUT_STATE', False)
+    )
+    if treat_timeout_as_submitted:
+        to_status = ProctoredExamStudentAttemptStatus.submitted
 
     #
     # don't allow state transitions from a completed state to an incomplete state
@@ -876,7 +887,7 @@ def update_attempt_status(exam_id, user_id, to_status,
                 continue
 
             if not attempt:
-                create_exam_attempt(other_exam.id, user_id, taking_as_proctored=False)
+                create_exam_attempt(other_exam.id, user_id, taking_as_proctored=False, provider_name='dummy')
 
             # update any new or existing status to declined
             update_attempt_status(
@@ -990,10 +1001,20 @@ def create_proctoring_attempt_status_email(user_id, exam_attempt_obj, course_nam
         })
     )
 
+    proctor_settings = get_proctoring_settings(exam_attempt_obj['provider_name'])
+    if get_proctoring_settings_param(proctor_settings, 'REPLY_TO_EMAIL'):
+        headers = {
+            'Reply-To': get_proctoring_settings_param(proctor_settings, 'REPLY_TO_EMAIL'),
+        }
+    else:
+        headers = None
+
     email = EmailMessage(
         body=body,
+        headers=headers,
         from_email=constants.FROM_EMAIL,
         to=[exam_attempt_obj.user.email],
+        bcc=get_proctoring_settings_param(proctor_settings, 'BCC_EMAIL', []),
         subject=email_subject,
     )
     email.content_subtype = 'html'
@@ -1622,7 +1643,7 @@ def _get_proctored_exam_context(exam, attempt, course_id, is_practice_exam=False
             'edx_proctoring.proctored_exam.attempt.review_status',
             args=[attempt['id']]
         ) if attempt else '',
-        'link_urls': settings.PROCTORING_SETTINGS.get('LINK_URLS', {}),
+        'link_urls': get_proctoring_settings_param(get_proctoring_settings(attempt['provider_name']), 'LINK_URLS', {}) if attempt else {},
         'tech_support_email': settings.TECH_SUPPORT_EMAIL,
     }
 
@@ -1644,7 +1665,7 @@ def _get_practice_exam_view(exam, context, exam_id, user_id, course_id):
         return None
     elif attempt_status in [ProctoredExamStudentAttemptStatus.created,
                             ProctoredExamStudentAttemptStatus.download_software_clicked]:
-        provider = get_backend_provider()
+        provider = get_backend_provider(attempt['provider_name'])
         student_view_template = 'proctored_exam/instructions.html'
         context.update({
             'exam_code': attempt['attempt_code'],
@@ -1766,7 +1787,7 @@ def _get_proctored_exam_view(exam, context, exam_id, user_id, course_id):
             # if the user has not id verified yet, show them the page that requires them to do so
             student_view_template = 'proctored_exam/id_verification.html'
         else:
-            provider = get_backend_provider()
+            provider = get_backend_provider(attempt['provider_name'])
             student_view_template = 'proctored_exam/instructions.html'
             context.update({
                 'exam_code': attempt['attempt_code'],

@@ -298,7 +298,8 @@ class ProctoredExamSoftwareSecureReviewAdmin(admin.ModelAdmin):
         review.save()
         # call the review saved and since it's coming from
         # the Django admin will we accept failures
-        get_backend_provider().on_review_saved(review, allow_rejects=True)
+        provider_name = get_provider_name_by_course_id(review.exam['course_id'])
+        get_backend_provider(provider_name).on_review_saved(review, allow_rejects=True)
 
     def get_form(self, request, obj=None, **kwargs):
         form = super(ProctoredExamSoftwareSecureReviewAdmin, self).get_form(request, obj, **kwargs)

@@ -485,6 +485,9 @@ class ProctoredExamStudentAttempt(TimeStampedModel):
     # else always false
     is_status_acknowledged = models.BooleanField(default=False)
 
+    # proctoring provider name
+    provider_name = models.CharField(max_length=255, null=True)
+
     class Meta:
         """ Meta class for this Django model """
         db_table = 'proctoring_proctoredexamstudentattempt'
@@ -494,6 +497,7 @@ class ProctoredExamStudentAttempt(TimeStampedModel):
     @classmethod
     def create_exam_attempt(cls, exam_id, user_id, student_name, allowed_time_limit_mins,
                             attempt_code, taking_as_proctored, is_sample_attempt, external_id,
+                            provider_name='',
                             review_policy_id=None):
         """
         Create a new exam attempt entry for a given exam_id and
@@ -510,6 +514,7 @@ class ProctoredExamStudentAttempt(TimeStampedModel):
             is_sample_attempt=is_sample_attempt,
             external_id=external_id,
             status=ProctoredExamStudentAttemptStatus.created,
+            provider_name=provider_name,
             review_policy_id=review_policy_id
         )  # pylint: disable=no-member
 
@@ -569,6 +574,9 @@ class ProctoredExamStudentAttemptHistory(TimeStampedModel):
     # They were used in client polling that no longer exists.
     last_poll_timestamp = models.DateTimeField(null=True)
     last_poll_ipaddr = models.CharField(max_length=32, null=True)
+
+    # proctoring provider name
+    provider_name = models.CharField(max_length=255, null=True)
 
     @classmethod
     def get_exam_attempt_by_code(cls, attempt_code):
