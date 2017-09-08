@@ -749,7 +749,7 @@ def update_attempt_status(exam_id, user_id, to_status,
             raise StudentExamAttemptDoesNotExistsException('Error. Trying to look up an exam that does not exist.')
         else:
             return
-    proctoring_settings = get_proctoring_settings(exam_attempt_obj['provider_name'])
+    proctoring_settings = get_proctoring_settings(exam_attempt_obj.provider_name)
 
     # In some configuration we may treat timeouts the same
     # as the user saying he/she wises to submit the exam
@@ -1001,7 +1001,7 @@ def create_proctoring_attempt_status_email(user_id, exam_attempt_obj, course_nam
         })
     )
 
-    proctor_settings = get_proctoring_settings(exam_attempt_obj['provider_name'])
+    proctor_settings = get_proctoring_settings(exam_attempt_obj.provider_name)
     if get_proctoring_settings_param(proctor_settings, 'REPLY_TO_EMAIL'):
         headers = {
             'Reply-To': get_proctoring_settings_param(proctor_settings, 'REPLY_TO_EMAIL'),
@@ -1187,7 +1187,7 @@ def _check_eligibility_of_enrollment_mode(credit_state):
     # Also make an exception for the honor students to take the "practice exam" as a proctored exam.
     # For the rest of the enrollment modes, None is returned which shows the exam content
     # to the student rather than the proctoring prompt.
-    return credit_state['enrollment_mode'] == 'verified'
+    return credit_state['enrollment_mode'] == 'verified' if credit_state else False
 
 
 def _get_ordered_prerequisites(prerequisites_statuses, filter_out_namespaces=None):
@@ -1783,7 +1783,8 @@ def _get_proctored_exam_view(exam, context, exam_id, user_id, course_id):
         return None
     elif attempt_status in [ProctoredExamStudentAttemptStatus.created,
                             ProctoredExamStudentAttemptStatus.download_software_clicked]:
-        if context.get('verification_status') is not 'approved':
+        # if context.get('verification_status') is not 'approved':
+        if False:
             # if the user has not id verified yet, show them the page that requires them to do so
             student_view_template = 'proctored_exam/id_verification.html'
         else:

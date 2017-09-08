@@ -104,8 +104,8 @@ class ExamReviewCallback(APIView):
             log.exception(ex)
             return Response(data={'reason': unicode(ex)}, status=400)
 
-        attempt_obj = locate_attempt_by_attempt_code(attempt_code)
-        provider = get_backend_provider(attempt_obj['provider_name'])
+        attempt_obj, attempt_status = locate_attempt_by_attempt_code(attempt_code)
+        provider = get_backend_provider(attempt_obj.provider_name)
 
         # call down into the underlying provider code
         try:
@@ -121,5 +121,39 @@ class ExamReviewCallback(APIView):
 
         return Response(
             data='OK',
+            status=200
+        )
+
+
+class AttemptStatus(APIView):
+    """
+    This endpoint is called by a 3rd party proctoring review service to determine
+    status of an exam attempt.
+
+    IMPORTANT: This is an unauthenticated endpoint, so be VERY CAREFUL about extending
+    this endpoint
+    """
+
+    def get(self, request, attempt_code):  # pylint: disable=unused-argument
+        """
+        Returns the status of an exam attempt. Given that this is an unauthenticated
+        caller, we will only return the status string, no additional information
+        about the exam
+        """
+
+        attempt = get_exam_attempt_by_code(attempt_code)
+        if not attempt:
+            return HttpResponse(
+                content='You have entered an exam code that is not valid.',
+                status=404
+            )
+
+        log.info("{} {}".format(attempt_code, attempt['status']))
+        return Response(
+            data={
+                # IMPORTANT: Don't add more information to this as it is an
+                # unauthenticated endpoint
+                'status': attempt['status'],
+            },
             status=200
         )
