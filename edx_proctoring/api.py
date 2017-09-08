@@ -1009,12 +1009,16 @@ def create_proctoring_attempt_status_email(user_id, exam_attempt_obj, course_nam
     else:
         headers = None
 
+    bcc_email = get_proctoring_settings_param(proctor_settings, 'BCC_EMAIL', [])
+    if isinstance(bcc_email, basestring):
+        bcc_email = (bcc_email,)
+
     email = EmailMessage(
         body=body,
         headers=headers,
         from_email=constants.FROM_EMAIL,
         to=[exam_attempt_obj.user.email],
-        bcc=get_proctoring_settings_param(proctor_settings, 'BCC_EMAIL', []),
+        bcc=bcc_email,
         subject=email_subject,
     )
     email.content_subtype = 'html'
