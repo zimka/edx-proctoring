@@ -836,32 +836,32 @@ msgstr ""
 #: utils.py:76
 #, python-brace-format
 msgid "{num_of_hours} hour"
-msgstr ""
+msgstr "{num_of_hours} час"
 
 #: utils.py:79
 #, python-brace-format
 msgid "{num_of_hours} hours"
-msgstr ""
+msgstr "{num_of_hours} часов"
 
 #: utils.py:87 utils.py:97
 #, python-brace-format
 msgid "{num_of_minutes} minutes"
-msgstr ""
+msgstr "{num_of_minutes} минут"
 
 #: utils.py:90
 #, python-brace-format
 msgid " and {num_of_minutes} minute"
-msgstr ""
+msgstr " и {num_of_minutes} минут"
 
 #: utils.py:92
 #, python-brace-format
 msgid "{num_of_minutes} minute"
-msgstr ""
+msgstr "{num_of_minutes} минут"
 
 #: utils.py:95
 #, python-brace-format
 msgid " and {num_of_minutes} minutes"
-msgstr ""
+msgstr " и {num_of_minutes} минут"
 
 #: views.py:92
 msgid "could not determine the course_id"
@@ -891,3 +891,48 @@ msgstr ""
 #: views.py:537
 msgid "proctored"
 msgstr ""
+
+msgid "Provider Name"
+msgstr "Название провайдера"
+
+msgid "Exam Name"
+msgstr "Название экзамена"
+
+msgid "Time Limit"
+msgstr "Предел по времени"
+
+msgid "Started At"
+msgstr "Начался в"
+
+msgid "Completed At"
+msgstr "Закончен в"
+
+msgid "No exam results found."
+msgstr "Результатов экзаменов не найдено."
+
+msgid "Allowances"
+msgstr "Послабления"
+
+msgid "Add Allowance"
+msgstr "Добавить послабление"
+
+msgid "Allowance Type"
+msgstr "Тип послабления"
+
+msgid "Allowance Value"
+msgstr "Величина послабления"
+
+msgid "Add a New Allowance"
+msgstr "Добавить новое послабление"
+
+msgid "Exam Type"
+msgstr "Типа экзамена"
+
+msgid "Special Exam"
+msgstr "Особый экзамен"
+
+msgid "Value"
+msgstr "Величина"
+
+msgid "Username or Email"
+msgstr "Имя пользователя/электронная почта"

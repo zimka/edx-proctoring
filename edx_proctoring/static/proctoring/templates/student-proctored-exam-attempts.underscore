@@ -131,7 +131,7 @@
                 <% } %>
             </table>
             <% if (!is_proctored_attempts) { %>
-                <p> No exam results found. </p>
+                <p> <%- gettext("No exam results found.") %> </p>
             <% } %>
 
         </section>
