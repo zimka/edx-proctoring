@@ -58,7 +58,7 @@ SHOW_EXPIRY_MESSAGE_DURATION = 1 * 60  # duration within which expiry message is
 
 
 def create_exam(course_id, content_id, exam_name, time_limit_mins, due_date=None,
-                is_proctored=True, is_practice_exam=False, external_id=None, is_active=True, hide_after_due=False):
+                is_proctored=True, is_practice_exam=False, external_id=None, is_active=True, hide_after_due=False, proctoring_service=None):
     """
     Creates a new ProctoredExam entity, if the course_id/content_id pair do not already exist.
     If that pair already exists, then raise exception.
@@ -80,18 +80,19 @@ def create_exam(course_id, content_id, exam_name, time_limit_mins, due_date=None
         is_practice_exam=is_practice_exam,
         is_active=is_active,
         hide_after_due=hide_after_due,
+        proctoring_service=proctoring_service,
     )
 
     log_msg = (
         u'Created exam ({exam_id}) with parameters: course_id={course_id}, '
         u'content_id={content_id}, exam_name={exam_name}, time_limit_mins={time_limit_mins}, '
         u'is_proctored={is_proctored}, is_practice_exam={is_practice_exam}, '
-        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}'.format(
+        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}, proctoring_service = {proctoring_service}'.format(
             exam_id=proctored_exam.id,
             course_id=course_id, content_id=content_id,
             exam_name=exam_name, time_limit_mins=time_limit_mins,
             is_proctored=is_proctored, is_practice_exam=is_practice_exam,
-            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due
+            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due, proctoring_service=proctoring_service
         )
     )
     log.info(log_msg)
@@ -204,7 +205,7 @@ def get_review_policy_by_exam_id(exam_id):
 
 
 def update_exam(exam_id, exam_name=None, time_limit_mins=None, due_date=constants.MINIMUM_TIME,
-                is_proctored=None, is_practice_exam=None, external_id=None, is_active=None, hide_after_due=None):
+                is_proctored=None, is_practice_exam=None, external_id=None, is_active=None, hide_after_due=None, proctoring_service=None):
     """
     Given a Django ORM id, update the existing record, otherwise raise exception if not found.
     If an argument is not passed in, then do not change it's current value.
@@ -216,10 +217,10 @@ def update_exam(exam_id, exam_name=None, time_limit_mins=None, due_date=constant
         u'Updating exam_id {exam_id} with parameters '
         u'exam_name={exam_name}, time_limit_mins={time_limit_mins}, due_date={due_date}'
         u'is_proctored={is_proctored}, is_practice_exam={is_practice_exam}, '
-        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}'.format(
+        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}, proctoring_service={proctoring_service}'.format(
             exam_id=exam_id, exam_name=exam_name, time_limit_mins=time_limit_mins,
             due_date=due_date, is_proctored=is_proctored, is_practice_exam=is_practice_exam,
-            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due
+            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due, proctoring_service=proctoring_service
         )
     )
     log.info(log_msg)
@@ -244,6 +245,8 @@ def update_exam(exam_id, exam_name=None, time_limit_mins=None, due_date=constant
         proctored_exam.is_active = is_active
     if hide_after_due is not None:
         proctored_exam.hide_after_due = hide_after_due
+    if proctoring_service is not None:
+        proctored_exam.proctoring_service = proctoring_service
     proctored_exam.save()
 
     # read back exam so we can emit an event on it
@@ -1074,7 +1077,7 @@ def remove_exam_attempt(attempt_id, requesting_user):
     emit_event(exam, 'deleted', attempt=attempt)
 
 
-def get_all_exams_for_course(course_id, timed_exams_only=False, active_only=False):
+def get_all_exams_for_course(course_id, timed_exams_only=False, active_only=False, dt_expired=False, proctoring_service=False):
     """
     This method will return all exams for a course. This will return a list
     of dictionaries, whose schema is the same as what is returned in
@@ -1101,7 +1104,9 @@ def get_all_exams_for_course(course_id, timed_exams_only=False, active_only=Fals
     exams = ProctoredExam.get_all_exams_for_course(
         course_id,
         active_only=active_only,
-        timed_exams_only=timed_exams_only
+        timed_exams_only=timed_exams_only,
+        dt_expired=dt_expired,
+        proctoring_service=proctoring_service
     )
 
     return [ProctoredExamSerializer(proctored_exam).data for proctored_exam in exams]

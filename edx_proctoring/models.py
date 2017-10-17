@@ -7,6 +7,7 @@ Data models for the proctoring subsystem
 
 from __future__ import absolute_import
 import six
+import datetime
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -61,6 +62,8 @@ class ProctoredExam(TimeStampedModel):
     # Whether to hide this exam after the due date
     hide_after_due = models.BooleanField(default=False)
 
+    proctoring_service = models.CharField(max_length=255, null=True)
+
     class Meta:
         """ Meta class for this Django model """
         unique_together = (('course_id', 'content_id'),)
@@ -100,7 +103,7 @@ class ProctoredExam(TimeStampedModel):
 
     @classmethod
     def get_all_exams_for_course(cls, course_id, active_only=False, timed_exams_only=False,
-                                 proctored_exams_only=False):
+                                 proctored_exams_only=False, dt_expired=False, proctoring_service=False):
         """
         Returns all exams for a give course
         """
@@ -112,6 +115,10 @@ class ProctoredExam(TimeStampedModel):
             filtered_query = filtered_query & Q(is_proctored=False)
         if proctored_exams_only:
             filtered_query = filtered_query & Q(is_proctored=True) & Q(is_practice_exam=False)
+        if dt_expired:
+            filtered_query = filtered_query & (Q(due_date__isnull=True) | Q(due_date__gt=datetime.datetime.now()))
+        if proctoring_service:
+            filtered_query = filtered_query & Q(proctoring_service=proctoring_service)
 
         return cls.objects.filter(filtered_query)
 
