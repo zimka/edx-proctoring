@@ -81,9 +81,9 @@
                     <tr class="exam-attempt-headings">
                         <th class="username"><%- gettext("Username") %></th>
                         <th class="email"><%- gettext("Email") %></th>
-                        <th class="firstname"><%- gettext("First Name") %></th>
-                        <th class="lastname"><%- gettext("Last Name") %></th>
-                        <th class="providername"><%- gettext("Provider Name") %></th>
+                        <th class="firstname" style="width:60px;"><%- gettext("First Name") %></th>
+                        <th class="lastname" style="width:60px;"><%- gettext("Last Name") %></th>
+                        <th class="providername" style="width:60px;"><%- gettext("Provider Name") %></th>
                         <th class="exam-name"><%- gettext("Exam Name") %></th>
                         <th class="attempt-allowed-time"><%- gettext("Time Limit") %> </th>
                         <th class="attempt-type"><%- gettext("Type") %> </th>
