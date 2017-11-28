@@ -766,7 +766,7 @@ class ProctoredExamStudentAllowance(TimeStampedModel):
             key = key[0]
 
         if not cls.is_allowance_value_valid(key, value):
-            err_msg = (
+            err_msg = _(
                 'allowance_value "{value}" should be non-negative integer value.'
             ).format(value=value)
             raise AllowanceValueNotAllowedException(err_msg)
@@ -780,7 +780,7 @@ class ProctoredExamStudentAllowance(TimeStampedModel):
                 users = User.objects.filter(email=user_info)
 
             if not users.exists():
-                err_msg = (
+                err_msg = _(
                     'Cannot find user against {user_info}'
                 ).format(user_info=user_info)
                 raise UserNotFoundException(err_msg)

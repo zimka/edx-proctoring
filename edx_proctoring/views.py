@@ -735,7 +735,7 @@ class ExamAllowanceView(AuthenticatedAPIView):
             LOG.exception(ex)
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,
-                data={"detail": str(ex)}
+                data={"detail": unicode(ex)}
             )
 
     @method_decorator(require_course_or_global_staff)
