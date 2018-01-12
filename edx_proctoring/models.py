@@ -633,7 +633,7 @@ def on_attempt_deleted(sender, instance, **kwargs):  # pylint: disable=unused-ar
         review_policy_id=instance.review_policy_id,
         last_poll_timestamp=instance.last_poll_timestamp,
         last_poll_ipaddr=instance.last_poll_ipaddr,
-
+        provider_name=instance.provider_name,
     )
     archive_object.save()
 
@@ -669,6 +669,7 @@ def on_attempt_updated(sender, instance, **kwargs):  # pylint: disable=unused-ar
                 review_policy_id=original.review_policy_id,
                 last_poll_timestamp=original.last_poll_timestamp,
                 last_poll_ipaddr=original.last_poll_ipaddr,
+                provider_name=instance.provider_name,
             )
             archive_object.save()
 
