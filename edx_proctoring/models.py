@@ -24,6 +24,8 @@ from edx_proctoring.exceptions import (
     ProctoredExamNotActiveException,
     AllowanceValueNotAllowedException
 )
+from opaque_keys.edx.keys import CourseKey
+from openedx.core.lib.courses import course_image_url
 
 
 @six.python_2_unicode_compatible
@@ -1050,3 +1052,77 @@ class ProctoredExamSoftwareSecureComment(TimeStampedModel):
         """ Meta class for this Django model """
         db_table = 'proctoring_proctoredexamstudentattemptcomment'
         verbose_name = 'proctored exam software secure comment'
+
+
+class ProctoredCourse(TimeStampedModel):
+    """
+    This is where we store the proctored courses
+    """
+    edx_id = models.CharField(max_length=255, primary_key=True)
+    name = models.TextField()
+    org = models.CharField(max_length=255)
+    run = models.CharField(max_length=255)
+    course = models.CharField(max_length=255)
+    image_url = models.CharField(max_length=255)
+    start = models.DateTimeField()
+    end = models.DateTimeField()
+
+    category = "course"
+    _available_proctoring_services = None
+
+    @property
+    def id(self):
+        return CourseKey.from_string(self.edx_id)
+
+    @property
+    def display_name(self):
+        return self.name
+
+    @property
+    def available_proctoring_services(self):
+        if self._available_proctoring_services is None:
+            self._available_proctoring_services = sorted([s.name for s in self.proctoring_services.all()])
+        return ','.join(self._available_proctoring_services)
+
+    @classmethod
+    def fetch_all(cls):
+        return cls.objects.all().prefetch_related('proctoring_services').order_by('name')
+
+    @classmethod
+    def create_new_from_edx_course(cls, edx_course):
+        proctored_course = cls(edx_id=unicode(edx_course.id))
+        proctored_course.set_fields_from_edx_course(edx_course)
+        proctored_course.save()
+        return proctored_course
+
+    def set_fields_from_edx_course(self, edx_course):
+        self.name = edx_course.display_name
+        self.org = edx_course.id.org
+        self.run = edx_course.id.run
+        self.course = edx_course.id.course
+        self.image_url = course_image_url(edx_course)
+        self.start = edx_course.start
+        self.end = edx_course.end
+
+    class scope_ids:
+        block_type = 'course'
+
+    class Meta:
+        """ Meta class for this Django model """
+        db_table = 'proctoring_proctoredcourse'
+        verbose_name = 'Proctored course'
+
+
+class ProctoredCourseProctoringService(TimeStampedModel):
+    """
+    This is where we store available proctoring services for the courses
+    """
+
+    course = models.ForeignKey(ProctoredCourse, related_name="proctoring_services")
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        """ Meta class for this Django model """
+        unique_together = (("course", "name"),)
+        db_table = 'proctoring_proctoredcourseproctoringservice'
+        verbose_name = 'Proctoring service'
