@@ -18,15 +18,17 @@ def migrate_all_courses(apps, schema_editor):
                                  if service.strip()]
         services_list_to_save = list(set(services_list_to_save))
         if services_list_to_save:
+            course_image = course_image_url(course)
+
             proctored_course = ProctoredCourse(
                 edx_id=unicode(course.id),
                 name=course.display_name,
                 org=course.id.org,
                 run=course.id.run,
                 course=course.id.course,
-                image_url=course_image_url(course),
-                start=course.start,
-                end=course.end
+                image_url=course_image if course_image else None,
+                start=course.start if course.start else None,
+                end=course.end if course.end else None
             )
             proctored_course.save()
             for service_name in services_list_to_save:
@@ -53,9 +55,9 @@ class Migration(migrations.Migration):
                 ('org', models.CharField(max_length=255)),
                 ('run', models.CharField(max_length=255)),
                 ('course', models.CharField(max_length=255)),
-                ('image_url', models.CharField(max_length=255)),
-                ('start', models.DateTimeField()),
-                ('end', models.DateTimeField()),
+                ('image_url', models.CharField(max_length=255, null=True, blank=True)),
+                ('start', models.DateTimeField(null=True)),
+                ('end', models.DateTimeField(null=True)),
             ],
             options={
                 'db_table': 'proctoring_proctoredcourse',

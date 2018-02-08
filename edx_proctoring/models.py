@@ -1063,9 +1063,9 @@ class ProctoredCourse(TimeStampedModel):
     org = models.CharField(max_length=255)
     run = models.CharField(max_length=255)
     course = models.CharField(max_length=255)
-    image_url = models.CharField(max_length=255)
-    start = models.DateTimeField()
-    end = models.DateTimeField()
+    image_url = models.CharField(max_length=255, null=True, blank=True)
+    start = models.DateTimeField(null=True)
+    end = models.DateTimeField(null=True)
 
     category = "course"
     _available_proctoring_services = None
@@ -1096,13 +1096,15 @@ class ProctoredCourse(TimeStampedModel):
         return proctored_course
 
     def set_fields_from_edx_course(self, edx_course):
+        course_image = course_image_url(edx_course)
+
         self.name = edx_course.display_name
         self.org = edx_course.id.org
         self.run = edx_course.id.run
         self.course = edx_course.id.course
-        self.image_url = course_image_url(edx_course)
-        self.start = edx_course.start
-        self.end = edx_course.end
+        self.image_url = course_image if course_image else None
+        self.start = edx_course.start if edx_course.start else None
+        self.end = edx_course.end if edx_course.end else None
 
     class scope_ids:
         block_type = 'course'
