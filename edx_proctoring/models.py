@@ -16,6 +16,7 @@ from django.db.models.base import ObjectDoesNotExist
 from django.db.models.signals import pre_save, pre_delete
 from django.dispatch import receiver
 from django.utils.translation import ugettext as _, ugettext_noop
+from jsonfield.fields import JSONField
 
 from model_utils.models import TimeStampedModel
 
@@ -63,8 +64,6 @@ class ProctoredExam(TimeStampedModel):
 
     # Whether to hide this exam after the due date
     hide_after_due = models.BooleanField(default=False)
-
-    proctoring_service = models.CharField(max_length=255, null=True)
 
     class Meta:
         """ Meta class for this Django model """
@@ -120,9 +119,32 @@ class ProctoredExam(TimeStampedModel):
         if dt_expired:
             filtered_query = filtered_query & (Q(due_date__isnull=True) | Q(due_date__gt=datetime.datetime.now()))
         if proctoring_service:
-            filtered_query = filtered_query & Q(proctoring_service=proctoring_service)
+            filtered_query = filtered_query & Q(proctored_exam_params__service=proctoring_service)
 
-        return cls.objects.filter(filtered_query)
+        return cls.objects.filter(filtered_query).prefetch_related('proctored_exam_params')
+
+    def _update_extended_exam_params(self, exam_params):
+        if 'service' in exam_params and exam_params['service']:
+            exam_params['service'] = exam_params['service'].strip() if exam_params['service'].strip() else None
+        else:
+            exam_params['service'] = None
+        return exam_params
+
+    def add_extended_exam_params(self, exam_params):
+        exam_params = self._update_extended_exam_params(exam_params)
+        exam_params['updated'] = True
+        exam_params['exam'] = self
+        ProctoredExamParams(**exam_params).save()
+
+    def update_extended_exam_params(self, exam_params):
+        exam_params = self._update_extended_exam_params(exam_params)
+        exam_params['updated'] = True
+        try:
+            for attr, value in exam_params.items():
+                setattr(self.proctored_exam_params, attr, value)
+                self.proctored_exam_params.save()
+        except ProctoredExamParams.DoesNotExist:
+            self.add_extended_exam_params(exam_params)
 
 
 class ProctoredExamStudentAttemptStatus(object):
@@ -403,7 +425,7 @@ class ProctoredExamStudentAttemptManager(models.Manager):
         if timed_exams_only:
             filtered_query = filtered_query & Q(proctored_exam__is_proctored=False)
 
-        return self.filter(filtered_query).order_by('-created')
+        return self.filter(filtered_query).prefetch_related('proctoring_service').order_by('-created')
 
     def get_filtered_exam_attempts(self, course_id, search_by, timed_exams_only=False):
         """
@@ -415,7 +437,8 @@ class ProctoredExamStudentAttemptManager(models.Manager):
         if timed_exams_only:
             filtered_query = filtered_query & Q(proctored_exam__is_proctored=False)
 
-        return self.filter(filtered_query).order_by('-created')  # pylint: disable=no-member
+        return self.filter(filtered_query).prefetch_related('proctoring_service')\
+            .order_by('-created')  # pylint: disable=no-member
 
     def get_proctored_exam_attempts(self, course_id, username):
         """
@@ -426,7 +449,7 @@ class ProctoredExamStudentAttemptManager(models.Manager):
             user__username=username,
             taking_as_proctored=True,
             is_sample_attempt=False,
-        ).order_by('-completed_at')
+        ).prefetch_related('proctoring_service').order_by('-completed_at')
 
     def get_active_student_attempts(self, user_id, course_id=None):
         """
@@ -437,7 +460,8 @@ class ProctoredExamStudentAttemptManager(models.Manager):
         if course_id is not None:
             filtered_query = filtered_query & Q(proctored_exam__course_id=course_id)
 
-        return self.filter(filtered_query).order_by('-created')  # pylint: disable=no-member
+        return self.filter(filtered_query).prefetch_related('proctoring_service')\
+            .order_by('-created')  # pylint: disable=no-member
 
 
 class ProctoredExamStudentAttempt(TimeStampedModel):
@@ -494,14 +518,18 @@ class ProctoredExamStudentAttempt(TimeStampedModel):
     # else always false
     is_status_acknowledged = models.BooleanField(default=False)
 
-    # proctoring provider name
-    provider_name = models.CharField(max_length=255, null=True)
-
     class Meta:
         """ Meta class for this Django model """
         db_table = 'proctoring_proctoredexamstudentattempt'
         verbose_name = 'proctored exam attempt'
         unique_together = (('user', 'proctored_exam'),)
+
+    @property
+    def provider_name(self):
+        try:
+            return self.proctoring_service.service
+        except ProctoredExamStudentAttemptProctoringService.DoesNotExist:
+            return None
 
     @classmethod
     def create_exam_attempt(cls, exam_id, user_id, student_name, allowed_time_limit_mins,
@@ -513,7 +541,7 @@ class ProctoredExamStudentAttempt(TimeStampedModel):
         user_id.
         """
 
-        return cls.objects.create(
+        exam_attempt = cls.objects.create(
             proctored_exam_id=exam_id,
             user_id=user_id,
             student_name=student_name,
@@ -523,9 +551,11 @@ class ProctoredExamStudentAttempt(TimeStampedModel):
             is_sample_attempt=is_sample_attempt,
             external_id=external_id,
             status=ProctoredExamStudentAttemptStatus.created,
-            provider_name=provider_name,
             review_policy_id=review_policy_id
         )  # pylint: disable=no-member
+        if provider_name:
+            ProctoredExamStudentAttemptProctoringService(attempt=exam_attempt, service=provider_name).save()
+        return exam_attempt
 
     def delete_exam_attempt(self):
         """
@@ -584,8 +614,12 @@ class ProctoredExamStudentAttemptHistory(TimeStampedModel):
     last_poll_timestamp = models.DateTimeField(null=True)
     last_poll_ipaddr = models.CharField(max_length=32, null=True)
 
-    # proctoring provider name
-    provider_name = models.CharField(max_length=255, null=True)
+    @property
+    def provider_name(self):
+        try:
+            return self.proctoring_service.service
+        except ProctoredExamStudentAttemptHistoryProctoringService.DoesNotExist:
+            return None
 
     @classmethod
     def get_exam_attempt_by_code(cls, attempt_code):
@@ -635,9 +669,16 @@ def on_attempt_deleted(sender, instance, **kwargs):  # pylint: disable=unused-ar
         review_policy_id=instance.review_policy_id,
         last_poll_timestamp=instance.last_poll_timestamp,
         last_poll_ipaddr=instance.last_poll_ipaddr,
-        provider_name=instance.provider_name,
     )
     archive_object.save()
+    try:
+        if instance.proctoring_service.service:
+            ProctoredExamStudentAttemptHistoryProctoringService(
+                attempt=archive_object,
+                service=instance.proctoring_service.service).save()
+
+    except ProctoredExamStudentAttemptProctoringService.DoesNotExist:
+        pass
 
 
 @receiver(pre_save, sender=ProctoredExamStudentAttempt)
@@ -671,9 +712,16 @@ def on_attempt_updated(sender, instance, **kwargs):  # pylint: disable=unused-ar
                 review_policy_id=original.review_policy_id,
                 last_poll_timestamp=original.last_poll_timestamp,
                 last_poll_ipaddr=original.last_poll_ipaddr,
-                provider_name=instance.provider_name,
             )
             archive_object.save()
+            try:
+                if original.proctoring_service.service:
+                    ProctoredExamStudentAttemptHistoryProctoringService(
+                        attempt=archive_object,
+                        service=original.proctoring_service.service).save()
+
+            except ProctoredExamStudentAttemptProctoringService.DoesNotExist:
+                pass
 
 
 class QuerySetWithUpdateOverride(models.QuerySet):
@@ -1089,6 +1137,10 @@ class ProctoredCourse(TimeStampedModel):
         return cls.objects.all().prefetch_related('proctoring_services').order_by('name')
 
     @classmethod
+    def fetch_by_course_ids(cls, course_ids):
+        return cls.objects.filter(edx_id__in=course_ids).prefetch_related('proctoring_services').order_by('name')
+
+    @classmethod
     def create_new_from_edx_course(cls, edx_course):
         proctored_course = cls(edx_id=unicode(edx_course.id))
         proctored_course.set_fields_from_edx_course(edx_course)
@@ -1119,7 +1171,6 @@ class ProctoredCourseProctoringService(TimeStampedModel):
     """
     This is where we store available proctoring services for the courses
     """
-
     course = models.ForeignKey(ProctoredCourse, related_name="proctoring_services")
     name = models.CharField(max_length=255)
 
@@ -1128,3 +1179,50 @@ class ProctoredCourseProctoringService(TimeStampedModel):
         unique_together = (("course", "name"),)
         db_table = 'proctoring_proctoredcourseproctoringservice'
         verbose_name = 'Proctoring service'
+
+
+class ProctoredExamParams(models.Model):
+    """
+    This is where we store additional params for exam (one-to-one)
+    """
+    exam = models.OneToOneField(ProctoredExam, primary_key=True,
+                                related_name="proctored_exam_params")
+    updated = models.BooleanField(default=False)  # this field is necessary only for migration
+    service = models.CharField(max_length=255, null=True)
+    deadline = models.DateTimeField(null=True)
+    start = models.DateTimeField(null=True)
+    visible_to_staff_only = models.BooleanField(default=False)
+    exam_review_checkbox = JSONField(default={})
+
+    class Meta:
+        """ Meta class for this Django model """
+        db_table = 'proctoring_proctoredexam_params'
+        verbose_name = 'proctored exam params'
+
+
+class ProctoredExamStudentAttemptProctoringService(models.Model):
+    """
+    This is where we store proctoring service for exam attempts (one-to-one)
+    """
+    attempt = models.OneToOneField(ProctoredExamStudentAttempt, primary_key=True,
+                                   related_name="proctoring_service")
+    service = models.CharField(max_length=255)
+
+    class Meta:
+        """ Meta class for this Django model """
+        db_table = 'proctoring_proctoredexamstudentattempt_proctoringservice'
+        verbose_name = 'proctored exam attempt proctoring service'
+
+
+class ProctoredExamStudentAttemptHistoryProctoringService(models.Model):
+    """
+    This is where we store proctoring service for exam attempts history (one-to-one)
+    """
+    attempt = models.OneToOneField(ProctoredExamStudentAttemptHistory, primary_key=True,
+                                   related_name="proctoring_service")
+    service = models.CharField(max_length=255)
+
+    class Meta:
+        """ Meta class for this Django model """
+        db_table = 'proctoring_proctoredexamstudentattempthistory_proctoringservice'
+        verbose_name = 'proctored exam attempt history proctoring service'

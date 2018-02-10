@@ -9,10 +9,38 @@ from rest_framework.fields import DateTimeField
 
 from edx_proctoring.models import (
     ProctoredExam,
+    ProctoredExamParams,
     ProctoredExamStudentAttempt,
     ProctoredExamStudentAllowance,
     ProctoredExamReviewPolicy
 )
+
+
+class JSONSerializerField(serializers.Field):
+    """
+    Serializer for JSONField -- required to make field writable
+    """
+
+    def to_internal_value(self, data):
+        return data
+
+    def to_representation(self, value):
+        return value
+
+
+class ProctoredExamParamsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the ProctoredExamParam Model.
+    """
+    class Meta:
+        """
+        Meta Class
+        """
+        model = ProctoredExamParams
+
+        fields = (
+            "service", "deadline", "start", "visible_to_staff_only", "exam_review_checkbox", "updated"
+        )
 
 
 class ProctoredExamSerializer(serializers.ModelSerializer):
@@ -31,7 +59,14 @@ class ProctoredExamSerializer(serializers.ModelSerializer):
     is_proctored = serializers.BooleanField(required=True)
     due_date = serializers.DateTimeField(required=False, format=None)
     hide_after_due = serializers.BooleanField(required=True)
-    proctoring_service = serializers.CharField(required=False)
+    proctoring_service = serializers.CharField(source='proctored_exam_params.service', required=False)
+    extended_params = ProctoredExamParamsSerializer(source='proctored_exam_params', required=False)
+
+    def __init__(self, *args, **kwargs):
+        include_extended_params = kwargs.pop('detailed', None)
+        super(ProctoredExamSerializer, self).__init__(*args, **kwargs)
+        if not include_extended_params:
+            self.fields.pop('extended_params')
 
     class Meta:
         """
@@ -42,7 +77,7 @@ class ProctoredExamSerializer(serializers.ModelSerializer):
         fields = (
             "id", "course_id", "content_id", "external_id", "exam_name",
             "time_limit_mins", "is_proctored", "is_practice_exam", "is_active",
-            "due_date", "hide_after_due", "proctoring_service"
+            "due_date", "hide_after_due", "proctoring_service", "extended_params"
         )
 
 
@@ -80,6 +115,7 @@ class ProctoredExamStudentAttemptSerializer(serializers.ModelSerializer):
     started_at = DateTimeField(format=None)
     completed_at = DateTimeField(format=None)
     last_poll_timestamp = DateTimeField(format=None)
+    provider_name = serializers.CharField(source='proctoring_service.service', required=False)
 
     class Meta:
         """
