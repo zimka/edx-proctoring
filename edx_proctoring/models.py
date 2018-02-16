@@ -554,7 +554,7 @@ class ProctoredExamStudentAttempt(TimeStampedModel):
             review_policy_id=review_policy_id
         )  # pylint: disable=no-member
         if provider_name:
-            ProctoredExamStudentAttemptProctoringService(attempt=exam_attempt, service=provider_name).save()
+            ProctoredExamStudentAttemptProctoringService(attempt=exam_attempt, service=provider_name.strip()).save()
         return exam_attempt
 
     def delete_exam_attempt(self):
