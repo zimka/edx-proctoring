@@ -62,8 +62,7 @@ SHOW_EXPIRY_MESSAGE_DURATION = 1 * 60  # duration within which expiry message is
 
 
 def create_exam(course_id, content_id, exam_name, time_limit_mins, due_date=None,
-                is_proctored=True, is_practice_exam=False, external_id=None, is_active=True, hide_after_due=False,
-                proctoring_service=None):
+                is_proctored=True, is_practice_exam=False, external_id=None, is_active=True, hide_after_due=False):
     """
     Creates a new ProctoredExam entity, if the course_id/content_id pair do not already exist.
     If that pair already exists, then raise exception.
@@ -93,14 +92,12 @@ def create_exam(course_id, content_id, exam_name, time_limit_mins, due_date=None
         u'Created exam ({exam_id}) with parameters: course_id={course_id}, '
         u'content_id={content_id}, exam_name={exam_name}, time_limit_mins={time_limit_mins}, '
         u'is_proctored={is_proctored}, is_practice_exam={is_practice_exam}, '
-        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}, '
-        u'proctoring_service = {proctoring_service}'.format(
+        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}'.format(
             exam_id=proctored_exam.id,
             course_id=course_id, content_id=content_id,
             exam_name=exam_name, time_limit_mins=time_limit_mins,
             is_proctored=is_proctored, is_practice_exam=is_practice_exam,
-            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due,
-            proctoring_service=proctoring_service
+            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due
         )
     )
     log.info(log_msg)
@@ -213,8 +210,7 @@ def get_review_policy_by_exam_id(exam_id):
 
 
 def update_exam(exam_id, exam_name=None, time_limit_mins=None, due_date=constants.MINIMUM_TIME,
-                is_proctored=None, is_practice_exam=None, external_id=None, is_active=None, hide_after_due=None,
-                proctoring_service=None):
+                is_proctored=None, is_practice_exam=None, external_id=None, is_active=None, hide_after_due=None):
     """
     Given a Django ORM id, update the existing record, otherwise raise exception if not found.
     If an argument is not passed in, then do not change it's current value.
@@ -226,12 +222,10 @@ def update_exam(exam_id, exam_name=None, time_limit_mins=None, due_date=constant
         u'Updating exam_id {exam_id} with parameters '
         u'exam_name={exam_name}, time_limit_mins={time_limit_mins}, due_date={due_date}'
         u'is_proctored={is_proctored}, is_practice_exam={is_practice_exam}, '
-        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}, '
-        u'proctoring_service={proctoring_service}'.format(
+        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}'.format(
             exam_id=exam_id, exam_name=exam_name, time_limit_mins=time_limit_mins,
             due_date=due_date, is_proctored=is_proctored, is_practice_exam=is_practice_exam,
-            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due,
-            proctoring_service=proctoring_service
+            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due
         )
     )
     log.info(log_msg)
@@ -1934,10 +1928,7 @@ def get_xblock_exam_params(content):
         item = content
     res['service'] = item.exam_proctoring_system
     res['visible_to_staff_only'] = item.visible_to_staff_only
-    if hasattr(item, "exam_review_checkbox"):
-        res['exam_review_checkbox'] = item.exam_review_checkbox
-    else:
-        res['exam_review_checkbox'] = {}
+    res['exam_review_checkbox'] = getattr(item, 'exam_review_checkbox', {})
     res['start'] = item.start
     oldest = None
     due_dates = []
