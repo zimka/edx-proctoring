@@ -36,8 +36,7 @@ from edx_proctoring.models import (
     ProctoredExamStudentAllowance,
     ProctoredExamStudentAttempt,
     ProctoredExamStudentAttemptStatus,
-    ProctoredExamReviewPolicy,
-    ProctoredExamParams
+    ProctoredExamReviewPolicy
 )
 from edx_proctoring.serializers import (
     ProctoredExamSerializer,
