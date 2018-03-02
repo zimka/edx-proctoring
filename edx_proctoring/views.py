@@ -43,7 +43,8 @@ from edx_proctoring.exceptions import (
     ProctoredExamPermissionDenied,
     StudentExamAttemptDoesNotExistsException,
     ProctoredExamNotActiveException,
-    AllowanceValueNotAllowedException
+    AllowanceValueNotAllowedException,
+    BackendProvideCannotRegisterAttempt
 )
 from edx_proctoring.runtime import get_runtime_service
 from edx_proctoring.serializers import ProctoredExamSerializer, ProctoredExamStudentAttemptSerializer
@@ -599,6 +600,12 @@ class StudentProctoredExamAttemptCollection(AuthenticatedAPIView):
 
             return Response({'exam_attempt_id': exam_attempt_id})
 
+        except BackendProvideCannotRegisterAttempt, ex:
+            LOG.exception(ex)
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"detail": unicode(ex), "message": ex.user_friendly_message}
+            )
         except ProctoredBaseException, ex:
             LOG.exception(ex)
             return Response(
