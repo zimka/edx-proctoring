@@ -25,6 +25,7 @@ from edx_proctoring.exceptions import (
     ProctoredExamNotActiveException,
     AllowanceValueNotAllowedException
 )
+from edx_proctoring.notifications import ProctorNotificator
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.lib.courses import course_image_url
 
@@ -595,6 +596,12 @@ class ProctoredExamStudentAttempt(TimeStampedModel):
             service=proctoring_service
         )
         obj.save()
+        ProctorNotificator.notify({
+            'code': self.attempt_code,
+            'status': custom_status,
+            'course_event_id': self.proctored_exam.id,
+            'course_id': self.proctored_exam.course_id
+        }, proctoring_service)
 
 
 class ProctoredExamStudentAttemptHistory(TimeStampedModel):

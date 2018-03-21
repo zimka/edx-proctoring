@@ -48,6 +48,7 @@ from edx_proctoring.utils import (
     humanized_time,
     emit_event
 )
+from edx_proctoring.notifications import ProctorNotificator
 
 from edx_proctoring.backends import get_backend_provider, get_proctoring_settings, get_proctoring_settings_param
 from edx_proctoring.runtime import get_runtime_service
@@ -934,6 +935,13 @@ def update_attempt_status(exam_id, user_id, to_status,
     # we re-read this from the database in case fields got updated
     # via workflow
     attempt = get_exam_attempt(exam_id, user_id)
+
+    ProctorNotificator.notify({
+        'code': attempt['attempt_code'],
+        'status': attempt['status'],
+        'course_event_id': exam['id'],
+        'course_id': exam['course_id']
+    }, attempt['provider_name'])
 
     # we user the 'status' field as the name of the event 'verb'
     emit_event(exam, attempt['status'], attempt=attempt)
