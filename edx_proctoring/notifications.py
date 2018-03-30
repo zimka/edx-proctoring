@@ -44,9 +44,7 @@ class ProctorNotificator(object):
     @classmethod
     def _get_celery_app(cls):
         if cls._celery_app is None:
-            proctoring_settings = getattr(settings, 'PROCTORING_SETTINGS', {})
-            notifications = proctoring_settings.get('NOTIFICATIONS', {})
-            broker = notifications.get('BROKER_URL', None)
+            broker = settings.BROKER_URL
             if broker:
                 cls._celery_app = Celery('proctoring_notifications', broker=broker)
             else:
