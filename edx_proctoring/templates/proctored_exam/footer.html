@@ -23,7 +23,8 @@
         // reload the page, because we've unlocked it
         location.reload();
       }
-    ).fail(function(){
+    ).fail(function(jqXHR){
+      var respData = jQuery.parseJSON(jqXHR.responseText);
       enableClickEvent(selector);
       var msg = gettext(
         "There has been a problem starting your exam.\n\n" +
@@ -31,6 +32,9 @@
         "you have are experiencing a network connection problem, or there has been\n" +
         "a service disruption. Check your account or network connection and try again."
       );
+      if (respData && respData.message) {
+        msg = respData.message;
+      }
       alert(msg);
     });
   };

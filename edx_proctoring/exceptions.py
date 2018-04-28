@@ -73,6 +73,11 @@ class BackendProvideCannotRegisterAttempt(ProctoredBaseException):
     """
     Raised when a back-end provider cannot register an attempt
     """
+    user_friendly_message = None
+
+    def __init__(self, message, user_friendly_message=None):
+        super(BackendProvideCannotRegisterAttempt, self).__init__(message)
+        self.user_friendly_message = user_friendly_message
 
 
 class ProctoredExamPermissionDenied(ProctoredBaseException):

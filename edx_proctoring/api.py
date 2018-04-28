@@ -36,7 +36,7 @@ from edx_proctoring.models import (
     ProctoredExamStudentAllowance,
     ProctoredExamStudentAttempt,
     ProctoredExamStudentAttemptStatus,
-    ProctoredExamReviewPolicy,
+    ProctoredExamReviewPolicy
 )
 from edx_proctoring.serializers import (
     ProctoredExamSerializer,
@@ -48,9 +48,13 @@ from edx_proctoring.utils import (
     humanized_time,
     emit_event
 )
+from edx_proctoring.notifications import ProctorNotificator
 
 from edx_proctoring.backends import get_backend_provider, get_proctoring_settings, get_proctoring_settings_param
 from edx_proctoring.runtime import get_runtime_service
+from xmodule.modulestore.django import modulestore
+from opaque_keys.edx.keys import UsageKey
+
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +62,7 @@ SHOW_EXPIRY_MESSAGE_DURATION = 1 * 60  # duration within which expiry message is
 
 
 def create_exam(course_id, content_id, exam_name, time_limit_mins, due_date=None,
-                is_proctored=True, is_practice_exam=False, external_id=None, is_active=True, hide_after_due=False, proctoring_service=None):
+                is_proctored=True, is_practice_exam=False, external_id=None, is_active=True, hide_after_due=False):
     """
     Creates a new ProctoredExam entity, if the course_id/content_id pair do not already exist.
     If that pair already exists, then raise exception.
@@ -80,19 +84,20 @@ def create_exam(course_id, content_id, exam_name, time_limit_mins, due_date=None
         is_practice_exam=is_practice_exam,
         is_active=is_active,
         hide_after_due=hide_after_due,
-        proctoring_service=proctoring_service,
     )
+
+    proctored_exam.add_extended_exam_params(get_xblock_exam_params(content_id))
 
     log_msg = (
         u'Created exam ({exam_id}) with parameters: course_id={course_id}, '
         u'content_id={content_id}, exam_name={exam_name}, time_limit_mins={time_limit_mins}, '
         u'is_proctored={is_proctored}, is_practice_exam={is_practice_exam}, '
-        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}, proctoring_service = {proctoring_service}'.format(
+        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}'.format(
             exam_id=proctored_exam.id,
             course_id=course_id, content_id=content_id,
             exam_name=exam_name, time_limit_mins=time_limit_mins,
             is_proctored=is_proctored, is_practice_exam=is_practice_exam,
-            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due, proctoring_service=proctoring_service
+            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due
         )
     )
     log.info(log_msg)
@@ -205,7 +210,7 @@ def get_review_policy_by_exam_id(exam_id):
 
 
 def update_exam(exam_id, exam_name=None, time_limit_mins=None, due_date=constants.MINIMUM_TIME,
-                is_proctored=None, is_practice_exam=None, external_id=None, is_active=None, hide_after_due=None, proctoring_service=None):
+                is_proctored=None, is_practice_exam=None, external_id=None, is_active=None, hide_after_due=None):
     """
     Given a Django ORM id, update the existing record, otherwise raise exception if not found.
     If an argument is not passed in, then do not change it's current value.
@@ -217,10 +222,10 @@ def update_exam(exam_id, exam_name=None, time_limit_mins=None, due_date=constant
         u'Updating exam_id {exam_id} with parameters '
         u'exam_name={exam_name}, time_limit_mins={time_limit_mins}, due_date={due_date}'
         u'is_proctored={is_proctored}, is_practice_exam={is_practice_exam}, '
-        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}, proctoring_service={proctoring_service}'.format(
+        u'external_id={external_id}, is_active={is_active}, hide_after_due={hide_after_due}'.format(
             exam_id=exam_id, exam_name=exam_name, time_limit_mins=time_limit_mins,
             due_date=due_date, is_proctored=is_proctored, is_practice_exam=is_practice_exam,
-            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due, proctoring_service=proctoring_service
+            external_id=external_id, is_active=is_active, hide_after_due=hide_after_due
         )
     )
     log.info(log_msg)
@@ -245,9 +250,9 @@ def update_exam(exam_id, exam_name=None, time_limit_mins=None, due_date=constant
         proctored_exam.is_active = is_active
     if hide_after_due is not None:
         proctored_exam.hide_after_due = hide_after_due
-    if proctoring_service is not None:
-        proctored_exam.proctoring_service = proctoring_service
     proctored_exam.save()
+
+    proctored_exam.update_extended_exam_params(get_xblock_exam_params(proctored_exam.content_id))
 
     # read back exam so we can emit an event on it
     exam = get_exam_by_id(proctored_exam.id)
@@ -931,6 +936,13 @@ def update_attempt_status(exam_id, user_id, to_status,
     # via workflow
     attempt = get_exam_attempt(exam_id, user_id)
 
+    ProctorNotificator.notify({
+        'code': attempt['attempt_code'],
+        'status': attempt['status'],
+        'course_event_id': exam['id'],
+        'course_id': exam['course_id']
+    }, attempt['provider_name'])
+
     # we user the 'status' field as the name of the event 'verb'
     emit_event(exam, attempt['status'], attempt=attempt)
 
@@ -955,7 +967,7 @@ def create_proctoring_attempt_status_email(user_id, exam_attempt_obj, course_nam
     )
     status = exam_attempt_obj.status
     if status == ProctoredExamStudentAttemptStatus.submitted:
-        email_template_path = 'emails/proctoring_attempt_submitted_email.html'
+        email_template_path = 'emails_ru/proctoring_attempt_submitted_email.html'
         email_subject = (
             _('Proctoring Review In Progress For {course_name} {exam_name}').format(
                 course_name=course_name,
@@ -963,9 +975,9 @@ def create_proctoring_attempt_status_email(user_id, exam_attempt_obj, course_nam
             )
         )
     elif status == ProctoredExamStudentAttemptStatus.verified:
-        email_template_path = 'emails/proctoring_attempt_satisfactory_email.html'
+        email_template_path = 'emails_ru/proctoring_attempt_satisfactory_email.html'
     elif status == ProctoredExamStudentAttemptStatus.rejected:
-        email_template_path = 'emails/proctoring_attempt_unsatisfactory_email.html'
+        email_template_path = 'emails_ru/proctoring_attempt_unsatisfactory_email.html'
     else:
         # Don't send an email for any other attempt status codes
         return None
@@ -1077,7 +1089,8 @@ def remove_exam_attempt(attempt_id, requesting_user):
     emit_event(exam, 'deleted', attempt=attempt)
 
 
-def get_all_exams_for_course(course_id, timed_exams_only=False, active_only=False, dt_expired=False, proctoring_service=False):
+def get_all_exams_for_course(course_id, timed_exams_only=False, active_only=False, dt_expired=False,
+                             proctoring_service=False, detailed=False):
     """
     This method will return all exams for a course. This will return a list
     of dictionaries, whose schema is the same as what is returned in
@@ -1109,7 +1122,7 @@ def get_all_exams_for_course(course_id, timed_exams_only=False, active_only=Fals
         proctoring_service=proctoring_service
     )
 
-    return [ProctoredExamSerializer(proctored_exam).data for proctored_exam in exams]
+    return [ProctoredExamSerializer(proctored_exam, detailed=detailed).data for proctored_exam in exams]
 
 
 def get_all_exam_attempts(course_id):
@@ -1654,6 +1667,7 @@ def _get_proctored_exam_context(exam, attempt, course_id, is_practice_exam=False
         ) if attempt else '',
         'link_urls': get_proctoring_settings_param(get_proctoring_settings(attempt['provider_name']), 'LINK_URLS', {}) if attempt else {},
         'tech_support_email': settings.TECH_SUPPORT_EMAIL,
+        'provider_name': attempt['provider_name'],
     }
 
 
@@ -1912,3 +1926,24 @@ def get_student_view(user_id, course_id, content_id,
         return sub_view_func(exam, context, exam_id, user_id, course_id)
     else:
         return None
+
+
+def get_xblock_exam_params(content):
+    res = {}
+    if isinstance(content, basestring):
+        item = modulestore().get_item(UsageKey.from_string(content))
+    else:
+        item = content
+    res['service'] = item.exam_proctoring_system
+    res['visible_to_staff_only'] = item.visible_to_staff_only
+    res['exam_review_checkbox'] = getattr(item, 'exam_review_checkbox', {})
+    res['start'] = item.start
+    oldest = None
+    due_dates = []
+    for vertical in item.get_children():
+        if vertical.due:
+            due_dates.append(vertical.due)
+    if due_dates:
+        oldest = min(due_dates)
+    res['deadline'] = oldest
+    return res
