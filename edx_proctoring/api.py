@@ -967,7 +967,7 @@ def create_proctoring_attempt_status_email(user_id, exam_attempt_obj, course_nam
     )
     status = exam_attempt_obj.status
     if status == ProctoredExamStudentAttemptStatus.submitted:
-        email_template_path = 'emails/proctoring_attempt_submitted_email.html'
+        email_template_path = 'emails_ru/proctoring_attempt_submitted_email.html'
         email_subject = (
             _('Proctoring Review In Progress For {course_name} {exam_name}').format(
                 course_name=course_name,
@@ -975,9 +975,9 @@ def create_proctoring_attempt_status_email(user_id, exam_attempt_obj, course_nam
             )
         )
     elif status == ProctoredExamStudentAttemptStatus.verified:
-        email_template_path = 'emails/proctoring_attempt_satisfactory_email.html'
+        email_template_path = 'emails_ru/proctoring_attempt_satisfactory_email.html'
     elif status == ProctoredExamStudentAttemptStatus.rejected:
-        email_template_path = 'emails/proctoring_attempt_unsatisfactory_email.html'
+        email_template_path = 'emails_ru/proctoring_attempt_unsatisfactory_email.html'
     else:
         # Don't send an email for any other attempt status codes
         return None
@@ -1667,6 +1667,7 @@ def _get_proctored_exam_context(exam, attempt, course_id, is_practice_exam=False
         ) if attempt else '',
         'link_urls': get_proctoring_settings_param(get_proctoring_settings(attempt['provider_name']), 'LINK_URLS', {}) if attempt else {},
         'tech_support_email': settings.TECH_SUPPORT_EMAIL,
+        'provider_name': attempt['provider_name'],
     }
 
 
