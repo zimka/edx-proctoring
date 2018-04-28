@@ -14,7 +14,18 @@ import pytz
 from django.utils.translation import ugettext as _, ugettext_noop
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.template import Context, loader
+from django.template import Context
+try:
+    from npoed import multi_loader as loader
+except ImportError as e:
+    logging.error("multi loader import error!:{}".format(e))
+    from django.template import loader
+    loader._get_single_template = loader.get_template
+    def _get_template(*args, **kwargs):
+        kwargs.pop("extension_name", None)
+        return loader._get_single_template(*args, **kwargs)
+    loader.get_template = _get_template
+
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.core.mail.message import EmailMessage
 
@@ -981,7 +992,7 @@ def create_proctoring_attempt_status_email(user_id, exam_attempt_obj, course_nam
     else:
         # Don't send an email for any other attempt status codes
         return None
-    email_template = loader.get_template(email_template_path)
+    email_template = loader.get_template(email_template_path, extension_name=exam_attempt_obj.proctored_exam.proctoring_service)
     try:
         course_info_url = reverse(
             'courseware.views.views.course_info',
@@ -1849,7 +1860,7 @@ def _get_proctored_exam_view(exam, context, exam_id, user_id, course_id):
         student_view_template = 'proctored_exam/ready_to_submit.html'
 
     if student_view_template:
-        template = loader.get_template(student_view_template)
+        template = loader.get_template(student_view_template, extension_name=exam.get('proctoring_service'))
         django_context = Context(context)
         django_context.update(_get_proctored_exam_context(exam, attempt, course_id))
         return template.render(django_context)
