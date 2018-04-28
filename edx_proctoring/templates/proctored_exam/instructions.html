@@ -2,6 +2,9 @@
 <div class="sequence proctored-exam instructions message-left-bar" data-exam-id="{{exam_id}}" data-exam-started-poll-url="{{exam_started_poll_url}}">
 
   <div class="">
+    {% if provider_name == "WEB_ASSISTANT" %}
+      Дождитесь, пока проктор активирует вашу сессию, затем нажмите "Начать экзамен"
+    {% else %}
     <h3>
     {% blocktrans %}
       Follow these steps to set up and start your proctored exam.
@@ -33,6 +36,7 @@
         A new window will open. You will run a system check before downloading the proctoring application.
       {% endblocktrans %}
     </p>
+    {% endif %}
     <div>
         <button type="button" class="exam-action-button btn-pl-primary start-proctored-exam">
             {% trans "Start Proctored Exam" %}
@@ -66,6 +70,7 @@
   <a href="#accessible-error-modal" rel="leanModal" id="confirm_open_button" style="display:none">{% trans "open"}</a>
 </div>
 
+{% if provider_name != "WEB_ASSISTANT" %}
 <div class="footer-sequence border-b-0 padding-b-0">
   {% if not is_sample_attempt and allow_proctoring_opt_out %}
     <p class="proctored-exam-instruction">
@@ -76,6 +81,7 @@
     </p>
   {% endif %}
 </div>
+{% endif %}
 {% include 'proctored_exam/footer.html' %}
 
 <script type="text/javascript">
