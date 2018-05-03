@@ -32,6 +32,8 @@ class ProctoredExamParamsSerializer(serializers.ModelSerializer):
     """
     Serializer for the ProctoredExamParam Model.
     """
+    exam_review_checkbox = JSONSerializerField()
+
     class Meta:
         """
         Meta Class
