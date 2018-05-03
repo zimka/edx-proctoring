@@ -1667,7 +1667,7 @@ def _get_proctored_exam_context(exam, attempt, course_id, is_practice_exam=False
         ) if attempt else '',
         'link_urls': get_proctoring_settings_param(get_proctoring_settings(attempt['provider_name']), 'LINK_URLS', {}) if attempt else {},
         'tech_support_email': settings.TECH_SUPPORT_EMAIL,
-        'provider_name': attempt['provider_name'],
+        'provider_name': attempt['provider_name'] if attempt else '',
     }
 
 
