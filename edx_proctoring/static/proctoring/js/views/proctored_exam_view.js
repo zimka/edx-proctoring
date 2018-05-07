@@ -23,6 +23,9 @@ var edx = edx || {};
             this.poll_interval = 60;
             this.first_time_rendering = true;
 
+            this.timerWaCheckAttempt = null;
+            this.checkWaAttemptInterval = 30000; // 30 sec
+
             // we need to keep a copy here because the model will
             // get destroyed before onbeforeunload is called
             this.taking_as_proctored = false;
@@ -48,6 +51,20 @@ var edx = edx || {};
             /* after it loads, the listenTo event will file and */
             /* will call into the rendering */
             this.model.fetch();
+        },
+        checkWaActivated: function() {
+            var url = $('.instructions').data('exam-started-poll-url');
+            var self = this;
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(data) {
+                    if (data.status !== 'created') {
+                        clearInterval(self.timerWaCheckAttempt);
+                        window.location.reload();
+                    }
+                }
+            });
         },
         detectScroll: function(event) {
             if ($(event.currentTarget).scrollTop() > this.timerBarTopPosition) {
@@ -123,6 +140,10 @@ var edx = edx || {};
                 else {
                     // remove callback on scroll event
                     $(window).unbind('scroll', this.detectScroll);
+                }
+
+                if ($("#check-wa-activated" ).length && (!this.timerWaCheckAttempt)) {
+                    this.timerWaCheckAttempt = setInterval(this.checkWaActivated, this.checkWaAttemptInterval, this);
                 }
             }
             return this;

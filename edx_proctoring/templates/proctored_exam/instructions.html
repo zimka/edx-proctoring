@@ -4,6 +4,7 @@
   <div class="">
     {% if provider_name == "WEB_ASSISTANT" %}
       Дождитесь, пока проктор активирует вашу сессию, затем нажмите "Начать экзамен"
+      <input type="hidden" name="check-wa-activated" id="check-wa-activated" value="1">
     {% else %}
     <h3>
     {% blocktrans %}
