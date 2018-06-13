@@ -16,11 +16,11 @@ class Migration(migrations.Migration):
             name='ProctoredExamParams',
             fields=[
                 ('exam', models.OneToOneField(related_name='proctored_exam_params', primary_key=True, serialize=False, to='edx_proctoring.ProctoredExam')),
-                ('updated', models.BooleanField(default=False)),
+                ('updated', models.NullBooleanField(default=False)),
                 ('service', models.CharField(max_length=255, null=True)),
                 ('deadline', models.DateTimeField(null=True)),
                 ('start', models.DateTimeField(null=True)),
-                ('visible_to_staff_only', models.BooleanField(default=False)),
+                ('visible_to_staff_only', models.NullBooleanField(default=False)),
                 ('exam_review_checkbox', jsonfield.fields.JSONField(default={})),
             ],
             options={

@@ -1287,11 +1287,11 @@ class ProctoredExamParams(models.Model):
     """
     exam = models.OneToOneField(ProctoredExam, primary_key=True,
                                 related_name="proctored_exam_params")
-    updated = models.BooleanField(default=False)  # this field is necessary only for migration
+    updated = models.NullBooleanField(default=False)  # this field is necessary only for migration
     service = models.CharField(max_length=255, null=True)
     deadline = models.DateTimeField(null=True)
     start = models.DateTimeField(null=True)
-    visible_to_staff_only = models.BooleanField(default=False)
+    visible_to_staff_only = models.NullBooleanField(default=False)
     exam_review_checkbox = JSONField(default={})
 
     class Meta:
